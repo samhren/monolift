@@ -6,10 +6,10 @@
 
 ## 1 · High‑Level Overview
 
--   **Scope**  Log barbell/DB exercises only (no cardio, nutrition, or body‑weight modules).
--   **Audience**  A single lifter on one phone, but architecture allows multiple users later.
--   **Offline‑first**  All writes land in a local SQLite store, then merge upstream on connectivity.
--   **Theme**  Monochrome — `#000` background, `#3a3a3a` components, `#fff` active states (WCAG AA contrast).
+- **Scope**  Log barbell/DB exercises only (no cardio, nutrition, or body‑weight modules).
+- **Audience**  A single lifter on one phone, but architecture allows multiple users later.
+- **Offline‑first**  All writes land in a local SQLite store, then merge upstream on connectivity.
+- **Theme**  Monochrome — `#000` background, `#3a3a3a` components, `#fff` active states (WCAG AA contrast).
 
 ---
 
@@ -43,10 +43,10 @@
 
 ### 2.3 Monorepo & Tooling
 
--   **Package Manager:** NPM workspaces (root + `apps/mobile` + `apps/api`).
--   **CI:** GitHub Actions → lint, type‑check, test for both apps.
--   **CD:** Expo EAS for mobile; Docker image pushed to Fly.io for API.
--   **Lint & Format:** ESLint, Prettier, Husky pre‑commit hook.
+- **Package Manager:** NPM workspaces (root + `apps/mobile` + `apps/api`).
+- **CI:** GitHub Actions → lint, type‑check, test for both apps.
+- **CD:** Expo EAS for mobile; Docker image pushed to Fly.io for API.
+- **Lint & Format:** ESLint, Prettier, Husky pre‑commit hook.
 
 ---
 
@@ -76,8 +76,8 @@
 
 ### 3.3 Auth Extras
 
--   **Row‑Level Security (RLS)** enforces `user_id = current_setting('app.current_user')` on every table.
--   Passwords hashed with Argon2; mobile clients use PKCE flow (code + verifier). Device API keys rotate every 30 days.
+- **Row‑Level Security (RLS)** enforces `user_id = current_setting('app.current_user')` on every table.
+- Passwords hashed with Argon2; mobile clients use PKCE flow (code + verifier). Device API keys rotate every 30 days.
 
 ---
 
@@ -137,18 +137,18 @@ Header: `Authorization: Device {device_api_key}` on all protected routes.
 
 ## 7 · Formulas & Calculations
 
--   **Work per set:** `work = reps × load`.
--   **1RM estimate:** Epley formula  `1RM = load × (1 + reps / 30)` (valid ≤ 10 reps).
--   **Weekly Volume:** rolling 7‑day sum of `work` grouped by exercise.
+- **Work per set:** `work = reps × load`.
+- **1RM estimate:** Epley formula  `1RM = load × (1 + reps / 30)` (valid ≤ 10 reps).
+- **Weekly Volume:** rolling 7‑day sum of `work` grouped by exercise.
 
 ---
 
 ## 8 · Security Notes
 
--   Secrets in `expo-secure-store`.
--   Device API keys rotate every 30 days.
--   Backend: Helmet, rate‑limit middleware, parametrized queries.
--   Postgres RLS + parameterized queries mitigate SQLi.
+- Secrets in `expo-secure-store`.
+- Device API keys rotate every 30 days.
+- Backend: Helmet, rate‑limit middleware, parametrized queries.
+- Postgres RLS + parameterized queries mitigate SQLi.
 
 ---
 
