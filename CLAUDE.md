@@ -1,162 +1,172 @@
-# CLAUDE.md – Project Design Primer
+# CLAUDE.md – Project Design Primer
 
-> **Purpose** – Give any AI assistant (Claude, ChatGPT, etc.) an unambiguous snapshot of the minimalist **strength‑training tracker** we are building, including tech stack, schema, auth model, REST endpoints, offline‑first sync rules, and UI conventions.
-
----
-
-## 1 · High‑Level Overview
-
-- **Scope**  Log barbell/DB exercises only (no cardio, nutrition, or body‑weight modules).
-- **Audience**  A single lifter on one phone, but architecture allows multiple users later.
-- **Offline‑first**  All writes land in a local SQLite store, then merge upstream on connectivity.
-- **Theme**  Monochrome — `#000` background, `#3a3a3a` components, `#fff` active states (WCAG AA contrast).
+> **Purpose** – Give any AI assistant (Claude, ChatGPT, etc.) an unambiguous snapshot of the minimalist **strength‑training tracker** we are building as a native iOS app with CloudKit sync, zero server costs, and offline‑first design.
 
 ---
 
-## 2 · Tech Stack
+## 1 · High‑Level Overview
 
-### 2.1 Frontend – Expo React Native
+- **Scope**  Log barbell/DB exercises only (no cardio, nutrition, or body‑weight modules).
+- **Platform**  iOS-only – optimized for iPhone with iPad support.
+- **Offline‑first**  All writes land in Core Data, sync via CloudKit across user's devices.
+- **Theme**  Monochrome — `#000` background, `#3a3a3a` components, `#fff` active states (WCAG AA contrast).
+- **Distribution**  Free app, no backend costs, privacy-focused with iCloud sync.
+- **Commit often after each change**
+
+---
+
+## 2 · Tech Stack
+
+### 2.1 Native iOS – Swift + UIKit/SwiftUI
 
 | Concern            | Choice                                               | Rationale                                        |
 | ------------------ | ---------------------------------------------------- | ------------------------------------------------ |
-| Language / Tooling | **TypeScript**, Expo SDK ^51                         | Strict types, hot‑reload via Expo Go.            |
-| Navigation         | `@react-navigation/native`                           | Battle‑tested, deep‑link support.                |
-| State & Caching    | React Context + `react-query`                        | Handles optimistic updates & background refetch. |
-| Charts             | `victory-native`                                     | Skia‑accelerated, MIT license, Expo‑compatible.  |
-| Local Storage      | `expo-sqlite` or `@nozbe/watermelondb`               | Fast reads/writes, sync‑oriented design.         |
-| Secure Storage     | `expo-secure-store`                                  | Encrypted keychain for tokens.                   |
-| Testing            | **Detox** (E2E), React Native Testing Library (unit) | Covers UI & logic.                               |
+| Language / Tooling | **Swift 5.9+**, Xcode 15+                          | Native performance, full platform access.        |
+| UI Framework       | **SwiftUI** with UIKit bridges                      | Modern declarative UI, backward compatibility.   |
+| Architecture       | **MVVM** + Combine                                  | Reactive data flow, testable separation.         |
+| Charts             | **Swift Charts** (iOS 16+)                          | Native, performant, follows system design.       |
+| Local Storage      | **Core Data** + CloudKit                            | Apple's ORM with built‑in sync capabilities.     |
+| Authentication     | **CloudKit** (iCloud account)                       | Zero auth complexity, automatic across devices.  |
+| Testing            | **XCTest** + **XCUITest**                           | Native unit & UI testing frameworks.             |
+| Notifications      | **UserNotifications** framework                     | Rest timer alerts, workout reminders.            |
 
-### 2.2 Backend – Express + TypeScript + Postgres
+### 2.2 Data & Sync – CloudKit + Core Data
 
 | Concern         | Choice                                                     | Rationale                                    |
 | --------------- | ---------------------------------------------------------- | -------------------------------------------- |
-| HTTP Server     | **Express 5** (when stable)                                | Thin, extensible, wide community.            |
-| Language        | **TypeScript** (esbuild + ts-node-dev)                     | Type‑safe routes & middleware.               |
-| Validation      | **Zod**                                                    | Declarative schemas shared with RN app.      |
-| ORM / DB Access | **TypeORM** (v0.3)                                         | Decorators, migrations, Postgres‑first.      |
-| Auth            | Argon2 password hashing + PKCE OAuth 2.0 + device API keys | Native‑app‑friendly; avoids long‑lived JWTs. |
-| Rate Limiting   | `express-rate-limit` + Redis (optional)                    | Protects `/auth/**` & `/sync/**`.            |
-| Testing         | **Jest** + **Supertest**                                   | Fast API unit/integration coverage.          |
-| DevOps          | Docker Compose: `api`, `postgres`, optional `redis`        | One‑command spin‑up.                         |
-| Hosting         | Fly.io / Railway / Supabase Functions                      | Each supports Postgres + TLS by default.     |
+| Local Database  | **Core Data** with CloudKit schema                        | Offline‑first, automatic CloudKit mapping.   |
+| Cloud Sync      | **CloudKit** private database                             | Free for users, handles conflicts, secure.   |
+| Data Model      | Core Data entities with `CKRecord` attributes             | CloudKit‑compatible schema design.           |
+| Conflict Res.   | CloudKit's built‑in last‑writer‑wins + manual resolution  | Handles offline/online sync automatically.   |
+| Privacy         | Private CloudKit database                                  | Data stays in user's iCloud, not shared.     |
+| Backup          | Automatic via iCloud + Core Data                          | Users' data backed up with their iCloud.     |
 
-### 2.3 Monorepo & Tooling
+### 2.3 Development & Tooling
 
-- **Package Manager:** NPM workspaces (root + `apps/mobile` + `apps/api`).
-- **CI:** GitHub Actions → lint, type‑check, test for both apps.
-- **CD:** Expo EAS for mobile; Docker image pushed to Fly.io for API.
-- **Lint & Format:** ESLint, Prettier, Husky pre‑commit hook.
+- **Package Manager:** Swift Package Manager for dependencies.
+- **CI:** GitHub Actions → SwiftLint, unit tests, build validation.
+- **Distribution:** App Store Connect via Xcode Cloud or fastlane.
+- **Analytics:** None (privacy‑first) or minimal native frameworks.
 
 ---
 
-## 3 · Relational Schema (Postgres)
+## 3 · Core Data Schema (CloudKit Compatible)
 
-> Table & field names are `snake_case`. All tables include `created_at`, `updated_at`, and nullable `deleted_at` (soft‑delete).
+> Entity & attribute names use `camelCase`. All entities include `createdAt`, `updatedAt` timestamps. CloudKit handles soft‑delete via `recordChangeTag`.
 
-### 3.1 Core Training Tables
+### 3.1 Core Training Entities
 
-| Table                  | Key Columns                                                                                               | Purpose                                                                      |
+| Entity                 | Key Attributes                                                                                            | Purpose                                                                      |
 | ---------------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| **users**              | `id UUID PK`, `email UNIQUE`, `password_hash`, `pkce_refresh_token`                                       | Single user now; future‑proof for >1.                                        |
-| **devices**            | `id UUID PK`, `user_id FK`, `platform`, `api_key_hash`                                                    | Multiple phones per user; hashed device key.                                 |
-| **exercises**          | `id PK`, `name`, `category`, `variant_of FK`                                                              | Seeded with ≈150 movements; variants (e.g., _Paused Bench_) point to parent. |
-| **workout_templates**  | `id PK`, `user_id`, `name`, `days_per_week`                                                               | Powers cards on **Workouts** tab.                                            |
-| **template_exercises** | `template_id FK`, `exercise_id FK`, `display_order`, `target_sets`, `target_reps`                         |                                                                              |
-| **sessions**           | `id PK`, `template_id FK`, `start_ts`, `end_ts`                                                           | One per workout execution.                                                   |
-| **sets**               | `session_id FK`, `exercise_id FK`, `set_idx`, `reps`, `load`, `is_partial`, `dropset_of set_idx nullable` |                                                                              |
-| **rest_logs**          | `session_id`, `set_idx`, `seconds`                                                                        | Rest‑timer analytics.                                                        |
+| **Exercise**           | `id UUID`, `name String`, `category String`, `variantOf Exercise?`                                       | Seeded with ≈150 movements; variants (e.g., _Paused Bench_) reference parent. |
+| **WorkoutTemplate**    | `id UUID`, `name String`, `daysPerWeek Int16`                                                            | Powers cards on **Workouts** tab.                                            |
+| **TemplateExercise**   | `template WorkoutTemplate`, `exercise Exercise`, `displayOrder Int16`, `targetSets Int16`, `targetReps Int16` | Join entity for template ↔ exercise relationships.                           |
+| **WorkoutSession**     | `id UUID`, `template WorkoutTemplate?`, `startedAt Date`, `finishedAt Date?`                             | One per workout execution.                                                   |
+| **ExerciseSet**        | `session WorkoutSession`, `exercise Exercise`, `setIndex Int16`, `reps Int16`, `load Double`, `isPartial Bool`, `dropsetOfIndex Int16?` | Individual sets within a workout session.                                    |
+| **RestLog**            | `session WorkoutSession`, `setIndex Int16`, `seconds Int32`                                              | Rest‑timer data for analytics.                                              |
 
-### 3.2 Sync & Audit Tables
+### 3.2 CloudKit Integration
 
-| Table          | Key Columns                                                                                        | Purpose                               |
-| -------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| **sync_queue** | `id PK`, `user_id`, `table_name`, `row_id`, `op ENUM('INSERT','UPDATE','DELETE')`, `payload JSONB` | Local changes awaiting push.          |
-| **change_log** | `id PK`, `user_id`, `table_name`, `row_id`, `change JSONB`                                         | Immutable audit for debugging merges. |
-
-### 3.3 Auth Extras
-
-- **Row‑Level Security (RLS)** enforces `user_id = current_setting('app.current_user')` on every table.
-- Passwords hashed with Argon2; mobile clients use PKCE flow (code + verifier). Device API keys rotate every 30 days.
+- **Record Zones:** Private database, custom zone for atomic sync operations
+- **Relationships:** Core Data relationships map to `CKReference` fields
+- **Conflict Resolution:** CloudKit's automatic merge + manual resolution for competing writes
+- **Schema Migration:** Handled via Core Data model versions, CloudKit schema updates
+- **Authentication:** Automatic via user's iCloud account, no separate auth needed
 
 ---
 
-## 4 · API Surface (v1)
+## 4 · Data Operations (Local + CloudKit Sync)
 
-All endpoints are versioned under `/v1` and speak JSON over HTTPS. Error format: RFC 7807 Problem+JSON.
+> No REST API needed. All operations are local Core Data calls that automatically sync via CloudKit when network is available.
 
-### 4.1 Auth
+### 4.1 Core Data Operations
 
-| Verb                  | Path                                                                                      | Description |
-| --------------------- | ----------------------------------------------------------------------------------------- | ----------- |
-| `POST /auth/register` | `{email, password, pkce_code}` → creates **user**, **device**, returns `{device_api_key}` |             |
-| `POST /auth/token`    | PKCE exchange → returns short‑lived access + refresh token                                |             |
-| `POST /auth/refresh`  | Rotate tokens                                                                             |             |
-| `POST /auth/revoke`   | Invalidate current `device_api_key`                                                       |             |
+```swift
+// All CRUD operations use NSManagedObjectContext
+let context = persistentContainer.viewContext
 
-Header: `Authorization: Device {device_api_key}` on all protected routes.
+// CloudKit sync happens automatically in background
+// No manual sync calls needed
+```
 
-### 4.2 Sync
+### 4.2 CloudKit Sync Behavior
 
-| Verb                         | Path                                                     | Purpose |
-| ---------------------------- | -------------------------------------------------------- | ------- |
-| `POST /sync/push`            | Client → server diff, returns `{conflicts, server_time}` |         |
-| `GET  /sync/pull?since=<ts>` | Server deltas newer than timestamp                       |         |
+| Operation | Local Behavior | CloudKit Sync |
+| --------- | -------------- | ------------- |
+| **Create** | Immediate save to Core Data | Syncs on next network availability |
+| **Update** | Immediate local update | Automatic background sync |
+| **Delete** | Soft delete locally | CloudKit tombstone record |
+| **Fetch**  | Always from local Core Data | CloudKit updates merged automatically |
 
-### 4.3 CRUD
+### 4.3 Data Access Patterns
 
-| Resource             | Routes                                                                           |
-| -------------------- | -------------------------------------------------------------------------------- |
-| **Exercise**         | `GET /exercise`, `POST /exercise`, `PATCH /exercise/:id`                         |
-| **Workout Template** | `GET /template`, `POST /template`, `PATCH /template/:id`, `DELETE /template/:id` |
-| **Session**          | `POST /session/start`, `PATCH /session/:id/finish`                               |
-| **Set**              | `POST /session/:id/set`, `PATCH /session/:id/set/:idx`                           |
-| **Metrics**          | `GET /metrics/weekly-volume`, `GET /metrics/1rm-history?exercise_id=`            |
-
----
-
-## 5 · Client Data Flow
-
-1. User taps **Start** on a Workout card → `POST /session/start` returns `session_id`.
-2. Each set saved locally → appended to **sync_queue**.
-3. Rest timer fires local notification; when network resumes, queue flushes via `/sync/push` (TLS‑only).
-4. `GET /sync/pull` runs on app foreground to hydrate missed changes.
+| Use Case | Implementation |
+| -------- | -------------- |
+| **Start Workout** | Create `WorkoutSession`, link to `WorkoutTemplate` |
+| **Log Set** | Create `ExerciseSet` linked to current session |
+| **View History** | `NSFetchRequest` with date predicates |
+| **Calculate 1RM** | Local computation from `ExerciseSet` data |
+| **Export Data** | Generate JSON/CSV from Core Data query results |
 
 ---
 
-## 6 · Front‑End Components
+## 5 · Data Flow (Offline‑First + CloudKit)
 
-| Screen       | Library                                  | Notes                                    |
-| ------------ | ---------------------------------------- | ---------------------------------------- |
-| Workouts Tab | `FlatList` + `reanimated` press feedback | Monochrome card UI.                      |
-| Calendar Tab | `react-native-calendars`                 | Month view with marked dates.            |
-| Progress Tab | `victory-native`                         | Line (1RM) & bar (weekly volume) charts. |
-| Persistence  | `expo-sqlite` / `watermelondb`           | Offline storage & sync queue.            |
-
----
-
-## 7 · Formulas & Calculations
-
-- **Work per set:** `work = reps × load`.
-- **1RM estimate:** Epley formula  `1RM = load × (1 + reps / 30)` (valid ≤ 10 reps).
-- **Weekly Volume:** rolling 7‑day sum of `work` grouped by exercise.
+1. User taps **Start** on a Workout card → Creates `WorkoutSession` in Core Data, available immediately.
+2. Each set saved to Core Data → CloudKit sync queued automatically in background.
+3. Rest timer fires `UserNotifications` → Works completely offline.
+4. App launch/foreground → CloudKit automatically fetches remote changes and merges.
+5. **Conflict Resolution:** CloudKit handles most conflicts; app resolves exercise‑specific conflicts (e.g., competing set updates).
 
 ---
 
-## 8 · Security Notes
+## 6 · iOS UI Components
 
-- Secrets in `expo-secure-store`.
-- Device API keys rotate every 30 days.
-- Backend: Helmet, rate‑limit middleware, parametrized queries.
-- Postgres RLS + parameterized queries mitigate SQLi.
+| Screen       | SwiftUI Component                         | Notes                                    |
+| ------------ | ----------------------------------------- | ---------------------------------------- |
+| Workouts Tab | `List` + custom `WorkoutCard` views       | Monochrome design, haptic feedback.      |
+| Calendar Tab | `CalendarView` (iOS 16+) or third‑party   | Month view with workout indicators.       |
+| Progress Tab | `Chart` (Swift Charts)                    | Line (1RM) & bar (volume) native charts. |
+| Workout View | Custom timer UI + `ScrollView`            | Live rest timer, set logging interface.  |
+| Persistence  | `Core Data` + `CloudKit`                  | Automatic sync, offline‑first storage.   |
 
 ---
 
-## 9 · Build & Deployment
+## 7 · Formulas & Calculations
 
-1. **Local Dev:** `npm i && npm dev` → spins up Expo + Docker Compose (Postgres + API).
-2. **CI:** GitHub Actions – lint, type‑check, Jest, Detox.
-3. **CD:** Expo EAS for mobile; Fly.io (or Railway) for API; Postgres on Supabase.
+- **Work per set:** `work = reps × load`.
+- **1RM estimate:** Epley formula  `1RM = load × (1 + reps / 30)` (valid ≤ 10 reps).
+- **Weekly Volume:** rolling 7‑day sum of `work` grouped by exercise.
+
+---
+
+## 8 · Security & Privacy
+
+- **No Authentication Required:** Uses iCloud account automatically.
+- **Data Privacy:** All data stays in user's private iCloud, never on external servers.
+- **Local Security:** iOS Keychain for sensitive data, Core Data encryption at rest.
+- **Network Security:** All CloudKit communication uses Apple's TLS infrastructure.
+- **No Tracking:** Zero analytics or user tracking, completely privacy‑focused.
+
+---
+
+## 9 · Build & Deployment
+
+1. **Local Dev:** Xcode 15+ → iOS Simulator, CloudKit Development environment.
+2. **CI:** GitHub Actions → SwiftLint, XCTest unit tests, build verification.
+3. **Distribution:** App Store Connect → TestFlight beta, App Store release.
+4. **CloudKit Setup:** Configure CloudKit schema, enable CloudKit in Xcode project.
+5. **No Server Costs:** Zero infrastructure to maintain or monitor.
+
+---
+
+## 10 · Business Model & Distribution
+
+- **Pricing:** Completely free - no subscriptions, no ads, no server costs.
+- **User Acquisition:** App Store organic discovery, fitness community sharing.
+- **Value Proposition:** Privacy-first, works offline, syncs across devices, zero complexity.
+- **Future Monetization:** Optional premium features (advanced analytics, coach sharing) if user base grows.
+- **Competitive Advantage:** Zero ongoing costs allows permanent free tier.
 
 ---
 
