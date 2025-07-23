@@ -19,54 +19,97 @@ import BottomSheet, {
     BottomSheetView,
     useBottomSheetTimingConfigs,
 } from "@gorhom/bottom-sheet";
-import { CalendarGrid } from "../components/calendar/CalendarGrid";
 import { Portal } from "@gorhom/portal";
+
+import { CalendarGrid } from "../components/calendar/CalendarGrid";
 import { TodayButton } from "../components/calendar/TodayButton";
 import { DateDetailSheet } from "../components/calendar/DateDetailSheet";
 
+/* ───────────────────────────── Constants ──────────────────────────── */
+
+const windowHeight = Dimensions.get("window").height;
+const CONTENT_HEIGHT = windowHeight * 0.3; // 30 % of screen
+const COLLAPSED_HEIGHT = 10; // slim bar
+
+const SNAP_POINTS = [COLLAPSED_HEIGHT, CONTENT_HEIGHT];
+
+/* ───────────────────────────── Component ──────────────────────────── */
+
 export const CalendarScreen: React.FC = () => {
-    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+    /* timing config must live **inside** the component (hook) */
+    const TIMING_400 = useBottomSheetTimingConfigs({
+        duration: 400,
+        easing: Easing.out(Easing.cubic),
+    });
+
+    /* header + FAB state */
     const [year, setYear] = useState(new Date().getFullYear());
     const [showBtn, setShowBtn] = useState(false);
     const [dir, setDir] = useState<"up" | "down">("up");
     const opacity = useRef(new Animated.Value(0)).current;
-    const bottomSheetRef = useRef<BottomSheet>(null);
-    const centerOnTodayRef = useRef<(() => void) | null>(null);
-    const windowHeight = Dimensions.get("window").height;
-    const contentHeight = windowHeight * 0.3;
-    const snapPoints = useMemo(() => [contentHeight], [contentHeight]);
-    const animationConfigs = useBottomSheetTimingConfigs({
-        duration: 200,
-        easing: Easing.out(Easing.cubic),
-    });
 
+    /* two sheets + their dates */
+    const refA = useRef<BottomSheet>(null);
+    const refB = useRef<BottomSheet>(null);
+    const [activeSheet, setActiveSheet] = useState<"A" | "B">("A");
+    const [dateA, setDateA] = useState<Date | null>(null);
+    const [dateB, setDateB] = useState<Date | null>(null);
+
+    /* today‑centering helper from CalendarGrid */
+    const centerOnTodayRef = useRef<(() => void) | null>(null);
+
+    /* bounce the first sheet on mount (makes handle visible) */
     useLayoutEffect(() => {
         InteractionManager.runAfterInteractions(() => {
-            const sheet = bottomSheetRef.current;
-            if (sheet) {
-                sheet.expand();
-                requestAnimationFrame(() => {
-                    sheet.close();
-                });
-            }
+            refA.current?.expand();
+            requestAnimationFrame(() => refA.current?.close());
         });
     }, []);
 
-    const handleSheetChanges = useCallback((index: number) => {
-        const changeTime = performance.now();
-        console.log(
-            `[${changeTime.toFixed(2)}ms] BottomSheet handleSheetChanges:`,
-            index
-        );
-    }, []);
+    /* ─────── Helper to switch sheets without flashing ─────── */
 
-    /** floating‑button helpers */
+    const showDate = useCallback(
+        (next: Date) => {
+            /* skip if already showing */
+            const current =
+                activeSheet === "A" ? dateA?.getTime() : dateB?.getTime();
+            if (current === next.getTime()) return;
+
+            const isAActive = activeSheet === "A";
+            const topRef = isAActive ? refA : refB; // currently visible
+            const bottomRef = isAActive ? refB : refA; // hidden one
+            const setBottomDate = isAActive ? setDateB : setDateA;
+            const bringToFront = isAActive ? "B" : "A";
+
+            /* 1️⃣ prerender hidden sheet with the new date */
+            setBottomDate(next);
+
+            /* 2️⃣ wait until React commits that update BEFORE animating */
+            InteractionManager.runAfterInteractions(() => {
+                /* rise beneath */
+                bottomRef.current?.snapToIndex(1, TIMING_400);
+                /* drop current on top */
+                topRef.current?.snapToIndex(0, TIMING_400);
+
+                /* 3️⃣ swap z‑order when the animation completes */
+                setTimeout(
+                    () => setActiveSheet(bringToFront),
+                    TIMING_400.duration
+                );
+            });
+        },
+        [activeSheet, dateA, dateB, TIMING_400]
+    );
+
+    /* ─────── Animated FAB helpers ─────── */
+
     const fadeIn = () =>
         Animated.timing(opacity, {
             toValue: 1,
             duration: 200,
             useNativeDriver: true,
         }).start();
+
     const fadeOut = () =>
         Animated.timing(opacity, {
             toValue: 0,
@@ -74,83 +117,21 @@ export const CalendarScreen: React.FC = () => {
             useNativeDriver: true,
         }).start(() => setShowBtn(false));
 
+    /* ─────────────────────────── Render ───────────────────────────── */
+
     return (
         <SafeAreaView style={styles.container}>
+            {/* ── Header ── */}
             <View style={styles.header}>
                 <Text style={styles.title}>Calendar</Text>
                 <Text style={styles.year}>{year}</Text>
             </View>
 
+            {/* ── Calendar grid ── */}
             <CalendarGrid
                 monthRange={{ start: -12, end: 24 }}
-                onCenterOnToday={(centerFn) => {
-                    centerOnTodayRef.current = centerFn;
-                }}
-                onDatePress={(d) => {
-                    const callbackStartTime = performance.now();
-                    console.log(
-                        `[${callbackStartTime.toFixed(
-                            2
-                        )}ms] CalendarScreen onDatePress:`,
-                        d
-                    );
-
-                    const setStateStartTime = performance.now();
-                    setSelectedDate(d);
-                    const setStateEndTime = performance.now();
-                    console.log(
-                        `[${setStateEndTime.toFixed(
-                            2
-                        )}ms] setSelectedDate finished (took ${(
-                            setStateEndTime - setStateStartTime
-                        ).toFixed(2)}ms)`
-                    );
-
-                    console.log(
-                        `[${performance
-                            .now()
-                            .toFixed(2)}ms] About to expand bottom sheet`
-                    );
-                    console.log(
-                        `[${performance
-                            .now()
-                            .toFixed(2)}ms] bottomSheetRef.current:`,
-                        bottomSheetRef.current
-                    );
-
-                    if (bottomSheetRef.current) {
-                        const expandStartTime = performance.now();
-                        console.log(
-                            `[${expandStartTime.toFixed(2)}ms] Calling expand()`
-                        );
-                        bottomSheetRef.current.expand();
-                        const expandEndTime = performance.now();
-                        console.log(
-                            `[${expandEndTime.toFixed(
-                                2
-                            )}ms] expand called (took ${(
-                                expandEndTime - expandStartTime
-                            ).toFixed(2)}ms)`
-                        );
-                    } else {
-                        console.log(
-                            `[${performance
-                                .now()
-                                .toFixed(
-                                    2
-                                )}ms] bottomSheetRef.current is null/undefined`
-                        );
-                    }
-
-                    const callbackEndTime = performance.now();
-                    console.log(
-                        `[${callbackEndTime.toFixed(
-                            2
-                        )}ms] Total onDatePress callback finished (took ${(
-                            callbackEndTime - callbackStartTime
-                        ).toFixed(2)}ms)`
-                    );
-                }}
+                onCenterOnToday={(fn) => (centerOnTodayRef.current = fn)}
+                onDatePress={showDate}
                 onYearChange={setYear}
                 onTodayVisibility={({ visible, direction }) => {
                     if (visible && !showBtn) {
@@ -159,48 +140,75 @@ export const CalendarScreen: React.FC = () => {
                         opacity.setValue(0);
                         fadeIn();
                     }
-                    if (!visible && showBtn) {
-                        fadeOut();
-                    }
+                    if (!visible && showBtn) fadeOut();
                 }}
             />
 
+            {/* ── Floating today button ── */}
             {showBtn && (
                 <TodayButton
                     direction={dir}
                     opacity={opacity}
                     onPress={() => {
-                        bottomSheetRef.current?.close();
-                        if (centerOnTodayRef.current) {
-                            centerOnTodayRef.current();
-                        }
+                        activeSheet === "A"
+                            ? refA.current?.close()
+                            : refB.current?.close();
+                        centerOnTodayRef.current?.();
                     }}
                 />
             )}
+
+            {/* ── Two layered sheets ── */}
             <Portal>
+                {/* Sheet A */}
                 <BottomSheet
-                    ref={bottomSheetRef}
+                    ref={refA}
                     index={-1}
-                    animateOnMount={false}
-                    enableDynamicSizing={false}
+                    snapPoints={SNAP_POINTS}
                     containerHeight={windowHeight}
-                    animationConfigs={animationConfigs}
-                    snapPoints={snapPoints}
                     enablePanDownToClose
+                    animationConfigs={TIMING_400}
                     backgroundStyle={{ backgroundColor: "#2a2a2a" }}
-                    onChange={handleSheetChanges}
-                    // @ts-expect-error
-                    handleHeight={24}
-                    contentHeight={contentHeight}
+                    // @ts-ignore
+                    handleHeight={24 as any}
+                    contentHeight={CONTENT_HEIGHT}
+                    style={{ zIndex: activeSheet === "A" ? 2 : 1 }}
                 >
-                    <BottomSheetView style={styles.contentContainer}>
-                        <DateDetailSheet date={selectedDate} />
+                    <BottomSheetView
+                        key={dateA?.toDateString() || "none"}
+                        style={styles.contentContainer}
+                    >
+                        <DateDetailSheet date={dateA} />
+                    </BottomSheetView>
+                </BottomSheet>
+
+                {/* Sheet B */}
+                <BottomSheet
+                    ref={refB}
+                    index={-1}
+                    snapPoints={SNAP_POINTS}
+                    containerHeight={windowHeight}
+                    enablePanDownToClose
+                    animationConfigs={TIMING_400}
+                    backgroundStyle={{ backgroundColor: "#2a2a2a" }}
+                    // @ts-ignore
+                    handleHeight={24 as any}
+                    contentHeight={CONTENT_HEIGHT}
+                    style={{ zIndex: activeSheet === "B" ? 2 : 1 }}
+                >
+                    <BottomSheetView
+                        key={dateB?.toDateString() || "none"}
+                        style={styles.contentContainer}
+                    >
+                        <DateDetailSheet date={dateB} />
                     </BottomSheetView>
                 </BottomSheet>
             </Portal>
         </SafeAreaView>
     );
 };
+
+/* ───────────────────────────── Styles ───────────────────────────── */
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: "#000" },
