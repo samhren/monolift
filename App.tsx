@@ -60,7 +60,7 @@ export default function App() {
                                     return (
                                         <Ionicons
                                             name={iconName}
-                                            size={size}
+                                            size={size + 2}
                                             color={color}
                                         />
                                     );
@@ -69,15 +69,20 @@ export default function App() {
                                 tabBarInactiveTintColor: "#666666",
                                 tabBarStyle: {
                                     backgroundColor: "#000000",
-                                    borderTopColor: "transparent",
+                                    borderTopColor: "#333",
+                                    borderTopWidth: 1,
                                     height: 88,
                                     paddingBottom: 8,
+                                },
+                                tabBarIconStyle: {
+                                    marginTop: 8,
                                 },
                                 tabBarLabelStyle: {
                                     fontSize: 12,
                                     fontWeight: "500",
                                 },
                                 headerShown: false,
+                                tabBarShowLabel: false,
                             })}
                         >
                             <Tab.Screen

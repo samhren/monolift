@@ -245,6 +245,7 @@ export const CalendarGrid: React.FC<Props> = ({
                     </View>
                 ))}
             </View>
+            <View style={styles.weekHeaderBorder} />
 
             <ScrollView
                 ref={scrollRef}
@@ -266,6 +267,11 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         paddingHorizontal: 12,
         paddingVertical: 8,
+    },
+    weekHeaderBorder: {
+        height: 1,
+        backgroundColor: "#333",
+        marginHorizontal: 12,
     },
     weekdayText: { fontSize: 12, fontWeight: "500", color: "#3a3a3a" },
     row: { flexDirection: "row", marginBottom: 8 },
