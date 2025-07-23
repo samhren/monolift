@@ -31,6 +31,16 @@ export interface WorkoutSession {
   updatedAt: string;
 }
 
+export interface WorkoutPlan {
+  id: string;
+  templateId?: string;
+  plannedDate: string;
+  isCompleted: boolean;
+  sessionId?: string; // Links to WorkoutSession when completed
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ExerciseSet {
   id: string;
   sessionId: string;

@@ -51,6 +51,8 @@ export const CalendarScreen: React.FC = () => {
     /* two sheets + their dates */
     const refA = useRef<BottomSheet>(null);
     const refB = useRef<BottomSheet>(null);
+    const indexARef = useRef(-1);
+    const indexBRef = useRef(-1);
     const [activeSheet, setActiveSheet] = useState<"A" | "B">("A");
     const [dateA, setDateA] = useState<Date | null>(null);
     const [dateB, setDateB] = useState<Date | null>(null);
@@ -70,16 +72,34 @@ export const CalendarScreen: React.FC = () => {
 
     const showDate = useCallback(
         (next: Date) => {
-            /* skip if already showing */
-            const current =
-                activeSheet === "A" ? dateA?.getTime() : dateB?.getTime();
-            if (current === next.getTime()) return;
+            // /* skip if already showing */
+            // const current =
+            //     activeSheet === "A" ? dateA?.getTime() : dateB?.getTime();
+            // if (current === next.getTime()) return;
 
+            // const isAActive = activeSheet === "A";
+            // const topRef = isAActive ? refA : refB; // currently visible
+            // const bottomRef = isAActive ? refB : refA; // hidden one
+            // const setBottomDate = isAActive ? setDateB : setDateA;
+            // const bringToFront = isAActive ? "B" : "A";
             const isAActive = activeSheet === "A";
-            const topRef = isAActive ? refA : refB; // currently visible
-            const bottomRef = isAActive ? refB : refA; // hidden one
+            const topRef = isAActive ? refA : refB;
+            const bottomRef = isAActive ? refB : refA;
             const setBottomDate = isAActive ? setDateB : setDateA;
             const bringToFront = isAActive ? "B" : "A";
+
+            const sameDate =
+                (isAActive ? dateA : dateB)?.getTime() === next.getTime();
+
+            /* ❯ look up the *stored* index instead of calling a method */
+            const topIndex = isAActive ? indexARef.current : indexBRef.current;
+
+            /* reopen if closed, skip if already open */
+            if (sameDate && topIndex === -1) {
+                topRef.current?.snapToIndex(1, TIMING_400);
+                return;
+            }
+            if (sameDate) return;
 
             /* 1️⃣ prerender hidden sheet with the new date */
             setBottomDate(next);
@@ -177,6 +197,9 @@ export const CalendarScreen: React.FC = () => {
                     handleHeight={24 as any}
                     contentHeight={CONTENT_HEIGHT}
                     style={{ zIndex: activeSheet === "A" ? 2 : 1 }}
+                    onChange={(index) => {
+                        indexARef.current = index;
+                    }}
                 >
                     <BottomSheetView
                         key={dateA?.toDateString() || "none"}
@@ -199,6 +222,9 @@ export const CalendarScreen: React.FC = () => {
                     handleHeight={24 as any}
                     contentHeight={CONTENT_HEIGHT}
                     style={{ zIndex: activeSheet === "B" ? 2 : 1 }}
+                    onChange={(index) => {
+                        indexBRef.current = index;
+                    }}
                 >
                     <BottomSheetView
                         key={dateB?.toDateString() || "none"}
