@@ -13,10 +13,11 @@ import {
     NativeSyntheticEvent,
     NativeScrollEvent,
     Dimensions,
+    ActivityIndicator,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { DayCell } from "./DayCell";
-import { generateMonthsData, isSameDay } from "../../utils/date";
+import { useCalendar } from "../../contexts/CalendarContext";
 import { MonthData } from "../../types/calendar";
 
 const { width } = Dimensions.get("window");
@@ -25,7 +26,6 @@ const ROW_HEIGHT = 63;
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 interface Props {
-    monthRange: { start: number; end: number };
     onDatePress: (d: Date) => void;
     onYearChange: (y: number) => void;
     onTodayVisibility: (opts: {
@@ -36,7 +36,6 @@ interface Props {
 }
 
 export const CalendarGrid: React.FC<Props> = ({
-    monthRange,
     onDatePress,
     onYearChange,
     onTodayVisibility,
@@ -44,10 +43,7 @@ export const CalendarGrid: React.FC<Props> = ({
 }) => {
     const scrollRef = useRef<ScrollView>(null);
     const hasInitiallyFocused = useRef(false);
-    const monthsData: MonthData[] = useMemo(
-        () => generateMonthsData(monthRange),
-        [monthRange]
-    );
+    const { monthsData, isLoading, monthRange } = useCalendar();
 
     /** ---- helpers reused by both mount‑time and Today button ---- */
     const centerOnToday = useCallback(() => {
@@ -109,35 +105,32 @@ export const CalendarGrid: React.FC<Props> = ({
 
     const handleScroll = useCallback(
         (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+            if (isLoading || !monthsData[0]?.monthGroups) return;
+            
             const y = e.nativeEvent.contentOffset.y;
             const viewport = e.nativeEvent.layoutMeasurement.height;
 
             const firstVisibleRow = Math.floor(y / ROW_HEIGHT);
             const lastVisibleRow = Math.ceil((y + viewport) / ROW_HEIGHT);
 
-            // Walk the grid again to: (1) detect which year this viewport is in,
-            // (2) locate today's row to decide if FAB should show.
-            if (!monthsData[0].monthGroups) return;
             const groups = monthsData[0].monthGroups;
-
             let rowCounter = 0;
             let currentYearFound = last.current.year;
             let todayRow = -1;
 
+            const today = new Date();
+            const startMonth = new Date(
+                today.getFullYear(),
+                today.getMonth() + monthRange.start,
+                1
+            );
+
             for (let m = 0; m < groups.length; m++) {
                 const rows = groups[m];
-
-                // derive year for these rows
-                const today = new Date();
-                const startMonth = new Date(
-                    today.getFullYear(),
-                    today.getMonth() + monthRange.start,
-                    1
-                );
                 const monthDate = new Date(startMonth);
                 monthDate.setMonth(startMonth.getMonth() + m);
 
-                // If current scroll row is within this month, update year
+                // Check if current scroll position is within this month for year detection
                 if (
                     firstVisibleRow >= rowCounter &&
                     firstVisibleRow < rowCounter + rows.length
@@ -145,49 +138,46 @@ export const CalendarGrid: React.FC<Props> = ({
                     currentYearFound = monthDate.getFullYear();
                 }
 
-                // search for today row
-                for (const row of rows) {
-                    if (row.days.some((d) => d.isToday)) todayRow = rowCounter;
-                    rowCounter++;
+                // Find today's row once
+                if (todayRow === -1) {
+                    for (let i = 0; i < rows.length; i++) {
+                        if (rows[i].days.some((d) => d.isToday)) {
+                            todayRow = rowCounter + i;
+                            break;
+                        }
+                    }
                 }
+
+                rowCounter += rows.length;
             }
 
-            // notify year change
+            // Update year if changed
             if (currentYearFound !== last.current.year) {
                 last.current.year = currentYearFound;
                 onYearChange(currentYearFound);
             }
 
-            // handle Today FAB
+            // Handle today button visibility
             if (todayRow !== -1) {
-                const visible =
-                    todayRow >= firstVisibleRow && todayRow <= lastVisibleRow;
-
-                if (!visible && !last.current.btn) {
-                    last.current.btn = true;
+                const visible = todayRow >= firstVisibleRow && todayRow <= lastVisibleRow;
+                
+                if (visible !== !last.current.btn) {
+                    last.current.btn = !visible;
                     onTodayVisibility({
-                        visible: true,
-                        direction: todayRow < firstVisibleRow ? "up" : "down",
-                    });
-                } else if (visible && last.current.btn) {
-                    last.current.btn = false;
-                    onTodayVisibility({ visible: false, direction: "up" });
-                } else if (!visible && last.current.btn) {
-                    onTodayVisibility({
-                        visible: true,
+                        visible: !visible,
                         direction: todayRow < firstVisibleRow ? "up" : "down",
                     });
                 }
             }
         },
-        [monthsData, monthRange, onYearChange, onTodayVisibility]
+        [isLoading, monthsData, monthRange, onYearChange, onTodayVisibility]
     );
 
     /** --------------- build all <DayCell/> rows ------------------- */
     const rowsJSX = useMemo(() => {
-        if (!monthsData[0].monthGroups) return null;
+        if (isLoading || !monthsData[0]?.monthGroups) return null;
+        
         const jsx: React.ReactElement[] = [];
-
         const today = new Date();
         const startMonth = new Date(
             today.getFullYear(),
@@ -214,13 +204,13 @@ export const CalendarGrid: React.FC<Props> = ({
                         {padded.map((day, i) =>
                             day ? (
                                 <DayCell
-                                    key={i}
+                                    key={`${day.date.getTime()}-${i}`}
                                     day={day}
                                     onPress={onDatePress}
                                     monthAbbrev={abbrev}
                                 />
                             ) : (
-                                <View key={i} style={styles.empty} />
+                                <View key={`empty-${i}`} style={styles.empty} />
                             )
                         )}
                     </View>
@@ -229,9 +219,34 @@ export const CalendarGrid: React.FC<Props> = ({
         });
 
         return jsx;
-    }, [monthsData, monthRange, onDatePress]);
+    }, [isLoading, monthsData, monthRange, onDatePress]);
 
     /** ----------------------- render ------------------------------ */
+    if (isLoading) {
+        return (
+            <>
+                {/* weekday strip */}
+                <View style={styles.weekHeader}>
+                    {WEEKDAYS.map((d) => (
+                        <View
+                            key={d}
+                            style={{ width: CELL_SIZE, alignItems: "center" }}
+                        >
+                            <Text style={styles.weekdayText}>{d}</Text>
+                        </View>
+                    ))}
+                </View>
+                <View style={styles.weekHeaderBorder} />
+                
+                {/* Loading state */}
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#FFFFFF" />
+                    <Text style={styles.loadingText}>Loading calendar...</Text>
+                </View>
+            </>
+        );
+    }
+
     return (
         <>
             {/* weekday strip */}
@@ -250,7 +265,7 @@ export const CalendarGrid: React.FC<Props> = ({
             <ScrollView
                 ref={scrollRef}
                 onScroll={handleScroll}
-                scrollEventThrottle={100}
+                scrollEventThrottle={200}
                 showsVerticalScrollIndicator={false}
                 style={{ flex: 1 }}
             >
@@ -276,4 +291,16 @@ const styles = StyleSheet.create({
     weekdayText: { fontSize: 12, fontWeight: "500", color: "#3a3a3a" },
     row: { flexDirection: "row", marginBottom: 8 },
     empty: { width: CELL_SIZE, height: 55 },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        paddingVertical: 60,
+    },
+    loadingText: {
+        color: "#666666",
+        fontSize: 16,
+        marginTop: 16,
+        fontWeight: "500",
+    },
 });

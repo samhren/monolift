@@ -14,7 +14,7 @@ interface Props {
     monthAbbrev?: string; // needed for 1st‑of‑month label
 }
 
-export const DayCell: React.FC<Props> = ({ day, onPress, monthAbbrev }) => {
+const DayCellComponent: React.FC<Props> = ({ day, onPress, monthAbbrev }) => {
     if (!day) return <View style={styles.empty} />;
 
     const isFirstOfMonth = day.date.getDate() === 1;
@@ -22,13 +22,7 @@ export const DayCell: React.FC<Props> = ({ day, onPress, monthAbbrev }) => {
     return (
         <TouchableOpacity
             style={styles.frame}
-            onPress={() => {
-                const startTime = performance.now();
-                console.log(`[${startTime.toFixed(2)}ms] DayCell pressed:`, day.date);
-                onPress(day.date);
-                const endTime = performance.now();
-                console.log(`[${endTime.toFixed(2)}ms] DayCell onPress callback finished (took ${(endTime - startTime).toFixed(2)}ms)`);
-            }}
+            onPress={() => onPress(day.date)}
         >
             {isFirstOfMonth && (
                 <Text style={styles.monthLabel}>{monthAbbrev}</Text>
@@ -53,6 +47,24 @@ export const DayCell: React.FC<Props> = ({ day, onPress, monthAbbrev }) => {
         </TouchableOpacity>
     );
 };
+
+// Memoize the component to prevent unnecessary rerenders
+export const DayCell = React.memo(DayCellComponent, (prevProps, nextProps) => {
+    // Custom comparison function for better performance
+    if (prevProps.monthAbbrev !== nextProps.monthAbbrev) return false;
+    
+    // Handle null cases
+    if (!prevProps.day && !nextProps.day) return true;
+    if (!prevProps.day || !nextProps.day) return false;
+    
+    // Compare day properties that affect rendering
+    return (
+        prevProps.day.date.getTime() === nextProps.day.date.getTime() &&
+        prevProps.day.isToday === nextProps.day.isToday &&
+        prevProps.day.hasWorkout === nextProps.day.hasWorkout &&
+        prevProps.day.isCurrentMonth === nextProps.day.isCurrentMonth
+    );
+});
 
 const { width } = Dimensions.get("window");
 const CELL_SIZE = (width - 24) / 7;

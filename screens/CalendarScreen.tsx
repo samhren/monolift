@@ -153,7 +153,6 @@ export const CalendarScreen: React.FC = () => {
 
             {/* ── Calendar grid ── */}
             <CalendarGrid
-                monthRange={{ start: -12, end: 24 }}
                 onCenterOnToday={(fn) => (centerOnTodayRef.current = fn)}
                 onDatePress={showDate}
                 onYearChange={setYear}

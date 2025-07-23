@@ -6,6 +6,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { CloudStorage, CloudStorageProvider } from "react-native-cloud-storage";
 import { WorkoutProvider } from "./contexts/WorkoutContext";
+import { CalendarProvider } from "./contexts/CalendarContext";
 import { WorkoutsScreen } from "./screens/WorkoutsScreen";
 import { CalendarScreen } from "./screens/CalendarScreen";
 import { ProgressScreen } from "./screens/ProgressScreen";
@@ -28,8 +29,9 @@ export default function App() {
 
     return (
         <WorkoutProvider>
-            <GestureHandlerRootView style={{ flex: 1 }}>
-                <PortalProvider>
+            <CalendarProvider>
+                <GestureHandlerRootView style={{ flex: 1 }}>
+                    <PortalProvider>
                     <NavigationContainer>
                         <StatusBar style="light" backgroundColor="#000000" />
                         <Tab.Navigator
@@ -103,8 +105,9 @@ export default function App() {
                             />
                         </Tab.Navigator>
                     </NavigationContainer>
-                </PortalProvider>
-            </GestureHandlerRootView>
+                    </PortalProvider>
+                </GestureHandlerRootView>
+            </CalendarProvider>
         </WorkoutProvider>
     );
 }
