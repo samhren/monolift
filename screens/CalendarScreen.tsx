@@ -92,10 +92,14 @@ export const CalendarScreen: React.FC = () => {
                 topRef.current?.snapToIndex(0, TIMING_400);
 
                 /* 3️⃣ swap z‑order when the animation completes */
-                setTimeout(
-                    () => setActiveSheet(bringToFront),
-                    TIMING_400.duration
-                );
+                // setTimeout(
+                //     () => setActiveSheet(bringToFront),
+                //     TIMING_400.duration
+                // );
+                setTimeout(() => {
+                    setActiveSheet(bringToFront);
+                    topRef.current?.close();
+                }, TIMING_400.duration);
             });
         },
         [activeSheet, dateA, dateB, TIMING_400]
