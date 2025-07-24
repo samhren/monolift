@@ -112,10 +112,6 @@ export const CalendarScreen: React.FC = () => {
                 topRef.current?.snapToIndex(0, TIMING_400);
 
                 /* 3️⃣ swap z‑order when the animation completes */
-                // setTimeout(
-                //     () => setActiveSheet(bringToFront),
-                //     TIMING_400.duration
-                // );
                 setTimeout(() => {
                     setActiveSheet(bringToFront);
                     topRef.current?.close();
@@ -156,6 +152,8 @@ export const CalendarScreen: React.FC = () => {
                 onCenterOnToday={(fn) => (centerOnTodayRef.current = fn)}
                 onDatePress={showDate}
                 onYearChange={setYear}
+                selectedDate={activeSheet === "A" ? dateA : dateB}
+                isBottomSheetOpen={!!(dateA || dateB)}
                 onTodayVisibility={({ visible, direction }) => {
                     if (visible && !showBtn) {
                         setShowBtn(true);
@@ -198,6 +196,9 @@ export const CalendarScreen: React.FC = () => {
                     style={{ zIndex: activeSheet === "A" ? 2 : 1 }}
                     onChange={(index) => {
                         indexARef.current = index;
+                        if (index === -1) {
+                            setDateA(null);
+                        }
                     }}
                 >
                     <BottomSheetView
@@ -223,6 +224,9 @@ export const CalendarScreen: React.FC = () => {
                     style={{ zIndex: activeSheet === "B" ? 2 : 1 }}
                     onChange={(index) => {
                         indexBRef.current = index;
+                        if (index === -1) {
+                            setDateB(null);
+                        }
                     }}
                 >
                     <BottomSheetView

@@ -33,6 +33,8 @@ interface Props {
         direction: "up" | "down";
     }) => void;
     onCenterOnToday?: (centerFn: () => void) => void;
+    selectedDate?: Date | null;
+    isBottomSheetOpen?: boolean;
 }
 
 export const CalendarGrid: React.FC<Props> = ({
@@ -40,6 +42,8 @@ export const CalendarGrid: React.FC<Props> = ({
     onYearChange,
     onTodayVisibility,
     onCenterOnToday,
+    selectedDate,
+    isBottomSheetOpen,
 }) => {
     const scrollRef = useRef<ScrollView>(null);
     const hasInitiallyFocused = useRef(false);
@@ -208,6 +212,8 @@ export const CalendarGrid: React.FC<Props> = ({
                                     day={day}
                                     onPress={onDatePress}
                                     monthAbbrev={abbrev}
+                                    selectedDate={selectedDate}
+                                    isBottomSheetOpen={isBottomSheetOpen}
                                 />
                             ) : (
                                 <View key={`empty-${i}`} style={styles.empty} />
@@ -219,7 +225,7 @@ export const CalendarGrid: React.FC<Props> = ({
         });
 
         return jsx;
-    }, [isLoading, monthsData, monthRange, onDatePress]);
+    }, [isLoading, monthsData, monthRange, onDatePress, selectedDate, isBottomSheetOpen]);
 
     /** ----------------------- render ------------------------------ */
     if (isLoading) {

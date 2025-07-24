@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import {
     TouchableOpacity,
     View,
     Text,
     StyleSheet,
     Dimensions,
+    Animated,
 } from "react-native";
 import { CalendarDay } from "../../types/calendar";
 
@@ -12,12 +13,35 @@ interface Props {
     day: CalendarDay | null;
     onPress: (d: Date) => void;
     monthAbbrev?: string; // needed for 1st‑of‑month label
+    selectedDate?: Date | null;
+    isBottomSheetOpen?: boolean;
 }
 
-const DayCellComponent: React.FC<Props> = ({ day, onPress, monthAbbrev }) => {
+const DayCellComponent: React.FC<Props> = ({ day, onPress, monthAbbrev, selectedDate, isBottomSheetOpen }) => {
     if (!day) return <View style={styles.empty} />;
 
     const isFirstOfMonth = day.date.getDate() === 1;
+    const isSelected = selectedDate && 
+        day.date.getTime() === selectedDate.getTime() && 
+        isBottomSheetOpen;
+    
+    const borderOpacity = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        if (isSelected) {
+            Animated.timing(borderOpacity, {
+                toValue: 1,
+                duration: 200,
+                useNativeDriver: true,
+            }).start();
+        } else {
+            Animated.timing(borderOpacity, {
+                toValue: 0,
+                duration: 150,
+                useNativeDriver: true,
+            }).start();
+        }
+    }, [isSelected, borderOpacity]);
 
     return (
         <TouchableOpacity
@@ -34,6 +58,19 @@ const DayCellComponent: React.FC<Props> = ({ day, onPress, monthAbbrev }) => {
                     day.isToday && !day.hasWorkout && styles.today,
                 ]}
             >
+                {selectedDate && day.date.getTime() === selectedDate.getTime() && (
+                    <Animated.View
+                        style={[
+                            StyleSheet.absoluteFill,
+                            {
+                                borderWidth: 2,
+                                borderColor: '#FFFFFF',
+                                borderRadius: 8,
+                                opacity: borderOpacity,
+                            },
+                        ]}
+                    />
+                )}
                 <Text
                     style={[
                         styles.date,
@@ -62,7 +99,9 @@ export const DayCell = React.memo(DayCellComponent, (prevProps, nextProps) => {
         prevProps.day.date.getTime() === nextProps.day.date.getTime() &&
         prevProps.day.isToday === nextProps.day.isToday &&
         prevProps.day.hasWorkout === nextProps.day.hasWorkout &&
-        prevProps.day.isCurrentMonth === nextProps.day.isCurrentMonth
+        prevProps.day.isCurrentMonth === nextProps.day.isCurrentMonth &&
+        prevProps.selectedDate?.getTime() === nextProps.selectedDate?.getTime() &&
+        prevProps.isBottomSheetOpen === nextProps.isBottomSheetOpen
     );
 });
 
@@ -88,7 +127,7 @@ const styles = StyleSheet.create({
     circle: {
         width: 36,
         height: 36,
-        borderRadius: 18,
+        borderRadius: 8,
         justifyContent: "center",
         alignItems: "center",
     },
