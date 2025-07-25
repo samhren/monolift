@@ -1,10 +1,5 @@
-import React, {
-    useRef,
-    useState,
-    useMemo,
-    useCallback,
-    useLayoutEffect,
-} from "react";
+// CalendarScreen.tsx
+import React, { useRef, useState, useLayoutEffect, useCallback } from "react";
 import {
     View,
     Text,
@@ -25,223 +20,177 @@ import { CalendarGrid } from "../components/calendar/CalendarGrid";
 import { TodayButton } from "../components/calendar/TodayButton";
 import { DateDetailSheet } from "../components/calendar/DateDetailSheet";
 
-/* ───────────────────────────── Constants ──────────────────────────── */
-
 const windowHeight = Dimensions.get("window").height;
-const CONTENT_HEIGHT = windowHeight * 0.3; // 30 % of screen
-const COLLAPSED_HEIGHT = 10; // slim bar
-
-const SNAP_POINTS = [COLLAPSED_HEIGHT, CONTENT_HEIGHT];
-
-/* ───────────────────────────── Component ──────────────────────────── */
+const CONTENT_HEIGHT = windowHeight * 0.3;
+const SNAP_POINTS = [CONTENT_HEIGHT];
 
 export const CalendarScreen: React.FC = () => {
-    /* timing config must live **inside** the component (hook) */
     const TIMING_400 = useBottomSheetTimingConfigs({
         duration: 400,
         easing: Easing.out(Easing.cubic),
     });
 
-    /* header + FAB state */
+    const TIMING_CLOSE = useBottomSheetTimingConfigs({
+        duration: 100, // <– very snappy
+        easing: Easing.out(Easing.cubic),
+    });
+
+    // year + FAB state
     const [year, setYear] = useState(new Date().getFullYear());
     const [showBtn, setShowBtn] = useState(false);
     const [dir, setDir] = useState<"up" | "down">("up");
     const opacity = useRef(new Animated.Value(0)).current;
 
-    /* two sheets + their dates */
-    const refA = useRef<BottomSheet>(null);
-    const refB = useRef<BottomSheet>(null);
-    const indexARef = useRef(-1);
-    const indexBRef = useRef(-1);
-    const [activeSheet, setActiveSheet] = useState<"A" | "B">("A");
-    const [dateA, setDateA] = useState<Date | null>(null);
-    const [dateB, setDateB] = useState<Date | null>(null);
+    // ** single sheet state **
+    const sheetRef = useRef<BottomSheet>(null);
+    const [sheetIndex, setSheetIndex] = useState<number>(-1);
+    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+    const isTransitioning = useRef(false);
 
-    /* today‑centering helper from CalendarGrid */
-    const centerOnTodayRef = useRef<(() => void) | null>(null);
-
-    /* bounce the first sheet on mount (makes handle visible) */
+    // bounce handle on mount
     useLayoutEffect(() => {
         InteractionManager.runAfterInteractions(() => {
-            refA.current?.expand();
-            requestAnimationFrame(() => refA.current?.close());
+            sheetRef.current?.expand();
+            requestAnimationFrame(() => sheetRef.current?.close());
         });
     }, []);
 
-    /* ─────── Helper to switch sheets without flashing ─────── */
-
-    const showDate = useCallback(
-        (next: Date) => {
-            // /* skip if already showing */
-            // const current =
-            //     activeSheet === "A" ? dateA?.getTime() : dateB?.getTime();
-            // if (current === next.getTime()) return;
-
-            // const isAActive = activeSheet === "A";
-            // const topRef = isAActive ? refA : refB; // currently visible
-            // const bottomRef = isAActive ? refB : refA; // hidden one
-            // const setBottomDate = isAActive ? setDateB : setDateA;
-            // const bringToFront = isAActive ? "B" : "A";
-            const isAActive = activeSheet === "A";
-            const topRef = isAActive ? refA : refB;
-            const bottomRef = isAActive ? refB : refA;
-            const setBottomDate = isAActive ? setDateB : setDateA;
-            const bringToFront = isAActive ? "B" : "A";
-
-            const sameDate =
-                (isAActive ? dateA : dateB)?.getTime() === next.getTime();
-
-            /* ❯ look up the *stored* index instead of calling a method */
-            const topIndex = isAActive ? indexARef.current : indexBRef.current;
-
-            /* reopen if closed, skip if already open */
-            if (sameDate && topIndex === -1) {
-                topRef.current?.snapToIndex(1, TIMING_400);
-                return;
+    // show/hide the FAB
+    const onTodayVisibility = useCallback(
+        ({
+            visible,
+            direction,
+        }: {
+            visible: boolean;
+            direction: "up" | "down";
+        }) => {
+            if (visible && !showBtn) {
+                setShowBtn(true);
+                setDir(direction);
+                opacity.setValue(0);
+                Animated.timing(opacity, {
+                    toValue: 1,
+                    duration: 200,
+                    useNativeDriver: true,
+                }).start();
             }
-            if (sameDate) return;
-
-            /* 1️⃣ prerender hidden sheet with the new date */
-            setBottomDate(next);
-
-            /* 2️⃣ wait until React commits that update BEFORE animating */
-            InteractionManager.runAfterInteractions(() => {
-                /* rise beneath */
-                bottomRef.current?.snapToIndex(1, TIMING_400);
-                /* drop current on top */
-                topRef.current?.snapToIndex(0, TIMING_400);
-
-                /* 3️⃣ swap z‑order when the animation completes */
-                setTimeout(() => {
-                    setActiveSheet(bringToFront);
-                    topRef.current?.close();
-                }, TIMING_400.duration);
-            });
+            if (!visible && showBtn) {
+                Animated.timing(opacity, {
+                    toValue: 0,
+                    duration: 50,
+                    useNativeDriver: true,
+                }).start(() => setShowBtn(false));
+            }
         },
-        [activeSheet, dateA, dateB, TIMING_400]
+        [showBtn, opacity]
     );
 
-    /* ─────── Animated FAB helpers ─────── */
+    // ─── the one, unified showDate fn with bob animation ───
+    const showDate = useCallback(
+        (date: Date) => {
+            const same = selectedDate?.getTime() === date.getTime();
 
-    const fadeIn = () =>
-        Animated.timing(opacity, {
-            toValue: 1,
-            duration: 200,
-            useNativeDriver: true,
-        }).start();
+            if (same) {
+                // if it's already open, close **and** clear immediately
+                if (sheetIndex !== -1) {
+                    setSelectedDate(null);
+                    sheetRef.current?.close();
+                } else {
+                    // if closed, just re‑open
+                    sheetRef.current?.snapToIndex(0, TIMING_400);
+                }
+                return;
+            }
 
-    const fadeOut = () =>
-        Animated.timing(opacity, {
-            toValue: 0,
-            duration: 50,
-            useNativeDriver: true,
-        }).start(() => setShowBtn(false));
-
-    /* ─────────────────────────── Render ───────────────────────────── */
+            // For new date selection: bob down animation
+            if (selectedDate && sheetIndex !== -1) {
+                // Set transition flag to prevent clearing selectedDate
+                isTransitioning.current = true;
+                
+                // Update date immediately to prevent empty state
+                setSelectedDate(date);
+                
+                // Animate sheet down and back up with new content
+                sheetRef.current?.snapToIndex(-1, TIMING_CLOSE);
+                
+                // After close animation, reopen with new data
+                setTimeout(() => {
+                    sheetRef.current?.snapToIndex(0, TIMING_400);
+                    // Clear transition flag after full animation
+                    setTimeout(() => {
+                        isTransitioning.current = false;
+                    }, 400);
+                }, 100); // Match TIMING_CLOSE duration
+            } else {
+                // First selection or no previous selection
+                setSelectedDate(date);
+                requestAnimationFrame(() => {
+                    sheetRef.current?.snapToIndex(0, TIMING_400);
+                });
+            }
+        },
+        [selectedDate, sheetIndex, TIMING_400, TIMING_CLOSE]
+    );
 
     return (
         <SafeAreaView style={styles.container}>
-            {/* ── Header ── */}
+            {/* Header */}
             <View style={styles.header}>
                 <Text style={styles.title}>Calendar</Text>
                 <Text style={styles.year}>{year}</Text>
             </View>
 
-            {/* ── Calendar grid ── */}
+            {/* Grid */}
             <CalendarGrid
-                onCenterOnToday={(fn) => (centerOnTodayRef.current = fn)}
+                onCenterOnToday={(fn) => fn && fn()}
                 onDatePress={showDate}
                 onYearChange={setYear}
-                selectedDate={activeSheet === "A" ? dateA : dateB}
-                isBottomSheetOpen={!!(dateA || dateB)}
-                onTodayVisibility={({ visible, direction }) => {
-                    if (visible && !showBtn) {
-                        setShowBtn(true);
-                        setDir(direction);
-                        opacity.setValue(0);
-                        fadeIn();
-                    }
-                    if (!visible && showBtn) fadeOut();
-                }}
+                selectedDate={selectedDate}
+                isBottomSheetOpen={Boolean(selectedDate)}
+                onTodayVisibility={onTodayVisibility}
             />
 
-            {/* ── Floating today button ── */}
+            {/* Today FAB */}
             {showBtn && (
                 <TodayButton
                     direction={dir}
                     opacity={opacity}
                     onPress={() => {
-                        activeSheet === "A"
-                            ? refA.current?.close()
-                            : refB.current?.close();
-                        centerOnTodayRef.current?.();
+                        setSelectedDate(null);
+                        sheetRef.current?.close();
+                        // center callback if you keep that ref
                     }}
                 />
             )}
 
-            {/* ── Two layered sheets ── */}
+            {/* Single BottomSheet */}
             <Portal>
-                {/* Sheet A */}
                 <BottomSheet
-                    ref={refA}
+                    ref={sheetRef}
                     index={-1}
                     snapPoints={SNAP_POINTS}
-                    containerHeight={windowHeight}
                     enablePanDownToClose
                     animationConfigs={TIMING_400}
                     backgroundStyle={{ backgroundColor: "#2a2a2a" }}
                     // @ts-ignore
-                    handleHeight={24 as any}
-                    contentHeight={CONTENT_HEIGHT}
-                    style={{ zIndex: activeSheet === "A" ? 2 : 1 }}
-                    onChange={(index) => {
-                        indexARef.current = index;
-                        if (index === -1) {
-                            setDateA(null);
-                        }
-                    }}
-                >
-                    <BottomSheetView
-                        key={dateA?.toDateString() || "none"}
-                        style={styles.contentContainer}
-                    >
-                        <DateDetailSheet date={dateA} />
-                    </BottomSheetView>
-                </BottomSheet>
-
-                {/* Sheet B */}
-                <BottomSheet
-                    ref={refB}
-                    index={-1}
-                    snapPoints={SNAP_POINTS}
+                    handleHeight={24}
                     containerHeight={windowHeight}
-                    enablePanDownToClose
-                    animationConfigs={TIMING_400}
-                    backgroundStyle={{ backgroundColor: "#2a2a2a" }}
-                    // @ts-ignore
-                    handleHeight={24 as any}
-                    contentHeight={CONTENT_HEIGHT}
-                    style={{ zIndex: activeSheet === "B" ? 2 : 1 }}
-                    onChange={(index) => {
-                        indexBRef.current = index;
-                        if (index === -1) {
-                            setDateB(null);
+                    onChange={(i) => {
+                        setSheetIndex(i);
+                        if (i === -1 && !isTransitioning.current) {
+                            // Only clear selection if not transitioning between dates
+                            setSelectedDate(null);
                         }
                     }}
                 >
-                    <BottomSheetView
-                        key={dateB?.toDateString() || "none"}
-                        style={styles.contentContainer}
-                    >
-                        <DateDetailSheet date={dateB} />
+                    <BottomSheetView style={styles.contentContainer}>
+                        <DateDetailSheet date={selectedDate} />
                     </BottomSheetView>
                 </BottomSheet>
             </Portal>
         </SafeAreaView>
     );
 };
-
-/* ───────────────────────────── Styles ───────────────────────────── */
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: "#000" },

@@ -89,6 +89,44 @@ export const AddTemplateModal: React.FC<AddTemplateModalProps> = ({
                                 color="rgba(255, 255, 255, 0.8)"
                             />
                         </View>
+                        
+                        <View style={styles.nameSelection}>
+                            {workoutNames.map((name, index) => {
+                                const distance = Math.abs(index - selectedIndex);
+                                const scale = Math.max(0.6, 1.0 - distance * 0.15);
+                                const opacity = Math.max(0.3, 1.0 - distance * 0.25);
+                                
+                                return (
+                                    <TouchableOpacity
+                                        key={name}
+                                        style={[
+                                            styles.nameOption,
+                                            index === selectedIndex && styles.selectedName,
+                                            { transform: [{ scale }], opacity }
+                                        ]}
+                                        onPress={() => setSelectedIndex(index)}
+                                    >
+                                        <Text style={[
+                                            styles.nameText,
+                                            index === selectedIndex && styles.selectedNameText
+                                        ]}>
+                                            {name}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+                        
+                        <TouchableOpacity 
+                            style={styles.arrowButton}
+                            onPress={handleArrowTap}
+                        >
+                            <Ionicons
+                                name="chevron-forward"
+                                size={24}
+                                color="#FFFFFF"
+                            />
+                        </TouchableOpacity>
                     </View>
                 </SafeAreaView>
             </Modal>
@@ -144,5 +182,36 @@ const styles = StyleSheet.create({
     pullIndicator: {
         alignItems: "center",
         paddingTop: 12,
+    },
+    nameSelection: {
+        flex: 1,
+        justifyContent: "center",
+        paddingVertical: 50,
+    },
+    nameOption: {
+        paddingVertical: 8,
+        marginBottom: 16,
+        alignItems: "center",
+    },
+    selectedName: {
+        backgroundColor: "rgba(255, 255, 255, 0.1)",
+        borderRadius: 8,
+        marginHorizontal: 20,
+        paddingVertical: 12,
+    },
+    nameText: {
+        fontSize: 20,
+        color: "#FFFFFF",
+        textAlign: "center",
+    },
+    selectedNameText: {
+        fontWeight: "500",
+    },
+    arrowButton: {
+        alignSelf: "center",
+        marginBottom: 40,
+        padding: 12,
+        backgroundColor: "rgba(255, 255, 255, 0.1)",
+        borderRadius: 20,
     },
 });

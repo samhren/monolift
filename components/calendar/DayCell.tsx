@@ -17,27 +17,35 @@ interface Props {
     isBottomSheetOpen?: boolean;
 }
 
-const DayCellComponent: React.FC<Props> = ({ day, onPress, monthAbbrev, selectedDate, isBottomSheetOpen }) => {
+const DayCellComponent: React.FC<Props> = ({
+    day,
+    onPress,
+    monthAbbrev,
+    selectedDate,
+    isBottomSheetOpen,
+}) => {
     if (!day) return <View style={styles.empty} />;
 
     const isFirstOfMonth = day.date.getDate() === 1;
-    const isSelected = selectedDate && 
-        day.date.getTime() === selectedDate.getTime() && 
-        isBottomSheetOpen;
-    
+    const isSelected = Boolean(
+        selectedDate &&
+        day.date.getTime() === selectedDate.getTime() &&
+        isBottomSheetOpen
+    );
+
     const borderOpacity = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
         if (isSelected) {
             Animated.timing(borderOpacity, {
                 toValue: 1,
-                duration: 200,
+                duration: 100,
                 useNativeDriver: true,
             }).start();
         } else {
             Animated.timing(borderOpacity, {
                 toValue: 0,
-                duration: 150,
+                duration: 100,
                 useNativeDriver: true,
             }).start();
         }
@@ -58,13 +66,13 @@ const DayCellComponent: React.FC<Props> = ({ day, onPress, monthAbbrev, selected
                     day.isToday && !day.hasWorkout && styles.today,
                 ]}
             >
-                {selectedDate && day.date.getTime() === selectedDate.getTime() && (
+                {isSelected && (
                     <Animated.View
                         style={[
                             StyleSheet.absoluteFill,
                             {
                                 borderWidth: 2,
-                                borderColor: '#FFFFFF',
+                                borderColor: "#FFFFFF",
                                 borderRadius: 8,
                                 opacity: borderOpacity,
                             },
@@ -89,18 +97,19 @@ const DayCellComponent: React.FC<Props> = ({ day, onPress, monthAbbrev, selected
 export const DayCell = React.memo(DayCellComponent, (prevProps, nextProps) => {
     // Custom comparison function for better performance
     if (prevProps.monthAbbrev !== nextProps.monthAbbrev) return false;
-    
+
     // Handle null cases
     if (!prevProps.day && !nextProps.day) return true;
     if (!prevProps.day || !nextProps.day) return false;
-    
+
     // Compare day properties that affect rendering
     return (
         prevProps.day.date.getTime() === nextProps.day.date.getTime() &&
         prevProps.day.isToday === nextProps.day.isToday &&
         prevProps.day.hasWorkout === nextProps.day.hasWorkout &&
         prevProps.day.isCurrentMonth === nextProps.day.isCurrentMonth &&
-        prevProps.selectedDate?.getTime() === nextProps.selectedDate?.getTime() &&
+        prevProps.selectedDate?.getTime() ===
+            nextProps.selectedDate?.getTime() &&
         prevProps.isBottomSheetOpen === nextProps.isBottomSheetOpen
     );
 });

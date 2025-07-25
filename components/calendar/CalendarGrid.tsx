@@ -104,8 +104,28 @@ export const CalendarGrid: React.FC<Props> = ({
         }
     }, [centerOnToday, onCenterOnToday]);
 
-    /** ---------- scroll handler: year + today button -------------- */
+    /** ---------- optimized scroll handler -------------- */
     const last = useRef({ year: new Date().getFullYear(), btn: false });
+    const todayRowRef = useRef<number>(-1);
+    
+    // Pre-calculate today's row position once
+    useEffect(() => {
+        if (isLoading || !monthsData[0]?.monthGroups) return;
+        
+        const groups = monthsData[0].monthGroups;
+        let rowCounter = 0;
+        
+        for (let m = 0; m < groups.length && todayRowRef.current === -1; m++) {
+            const rows = groups[m];
+            for (let i = 0; i < rows.length; i++) {
+                if (rows[i].days.some((d) => d.isToday)) {
+                    todayRowRef.current = rowCounter + i;
+                    break;
+                }
+            }
+            rowCounter += rows.length;
+        }
+    }, [isLoading, monthsData]);
 
     const handleScroll = useCallback(
         (e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -117,10 +137,10 @@ export const CalendarGrid: React.FC<Props> = ({
             const firstVisibleRow = Math.floor(y / ROW_HEIGHT);
             const lastVisibleRow = Math.ceil((y + viewport) / ROW_HEIGHT);
 
+            // Optimize year calculation - only check months that could be visible
             const groups = monthsData[0].monthGroups;
             let rowCounter = 0;
             let currentYearFound = last.current.year;
-            let todayRow = -1;
 
             const today = new Date();
             const startMonth = new Date(
@@ -129,30 +149,23 @@ export const CalendarGrid: React.FC<Props> = ({
                 1
             );
 
+            // Only iterate through months that could be in viewport
             for (let m = 0; m < groups.length; m++) {
                 const rows = groups[m];
-                const monthDate = new Date(startMonth);
-                monthDate.setMonth(startMonth.getMonth() + m);
-
-                // Check if current scroll position is within this month for year detection
-                if (
-                    firstVisibleRow >= rowCounter &&
-                    firstVisibleRow < rowCounter + rows.length
-                ) {
+                const nextRowCounter = rowCounter + rows.length;
+                
+                // If this month intersects with viewport, check year
+                if (firstVisibleRow < nextRowCounter && lastVisibleRow >= rowCounter) {
+                    const monthDate = new Date(startMonth);
+                    monthDate.setMonth(startMonth.getMonth() + m);
                     currentYearFound = monthDate.getFullYear();
+                    break; // Found intersecting month, no need to continue
                 }
-
-                // Find today's row once
-                if (todayRow === -1) {
-                    for (let i = 0; i < rows.length; i++) {
-                        if (rows[i].days.some((d) => d.isToday)) {
-                            todayRow = rowCounter + i;
-                            break;
-                        }
-                    }
-                }
-
-                rowCounter += rows.length;
+                
+                rowCounter = nextRowCounter;
+                
+                // Early exit if we've passed the viewport
+                if (rowCounter > lastVisibleRow) break;
             }
 
             // Update year if changed
@@ -161,15 +174,15 @@ export const CalendarGrid: React.FC<Props> = ({
                 onYearChange(currentYearFound);
             }
 
-            // Handle today button visibility
-            if (todayRow !== -1) {
-                const visible = todayRow >= firstVisibleRow && todayRow <= lastVisibleRow;
+            // Handle today button visibility using pre-calculated row
+            if (todayRowRef.current !== -1) {
+                const visible = todayRowRef.current >= firstVisibleRow && todayRowRef.current <= lastVisibleRow;
                 
                 if (visible !== !last.current.btn) {
                     last.current.btn = !visible;
                     onTodayVisibility({
                         visible: !visible,
-                        direction: todayRow < firstVisibleRow ? "up" : "down",
+                        direction: todayRowRef.current < firstVisibleRow ? "up" : "down",
                     });
                 }
             }
@@ -177,11 +190,15 @@ export const CalendarGrid: React.FC<Props> = ({
         [isLoading, monthsData, monthRange, onYearChange, onTodayVisibility]
     );
 
-    /** --------------- build all <DayCell/> rows ------------------- */
-    const rowsJSX = useMemo(() => {
+    /** --------------- build calendar structure (optimized) ------------------- */
+    const calendarStructure = useMemo(() => {
         if (isLoading || !monthsData[0]?.monthGroups) return null;
         
-        const jsx: React.ReactElement[] = [];
+        const structure: Array<{
+            rows: Array<{ days: any[]; rowIndex: number }>;
+            monthAbbrev: string;
+        }> = [];
+        
         const today = new Date();
         const startMonth = new Date(
             today.getFullYear(),
@@ -198,20 +215,35 @@ export const CalendarGrid: React.FC<Props> = ({
                 month: "short",
             });
 
-            monthRows.forEach((row) => {
-                // pad row to 7 positions
+            const rows = monthRows.map((row) => {
                 const padded: any[] = [...row.days];
                 while (padded.length < 7) padded.push(null);
+                return { days: padded, rowIndex: globalRow++ };
+            });
 
+            structure.push({ rows, monthAbbrev: abbrev });
+        });
+
+        return structure;
+    }, [isLoading, monthsData, monthRange]);
+
+    /** --------------- render rows with minimal re-renders ------------------- */
+    const rowsJSX = useMemo(() => {
+        if (!calendarStructure) return null;
+        
+        const jsx: React.ReactElement[] = [];
+        
+        calendarStructure.forEach(({ rows, monthAbbrev }) => {
+            rows.forEach(({ days, rowIndex }) => {
                 jsx.push(
-                    <View key={`row-${globalRow++}`} style={styles.row}>
-                        {padded.map((day, i) =>
+                    <View key={`row-${rowIndex}`} style={styles.row}>
+                        {days.map((day, i) =>
                             day ? (
                                 <DayCell
                                     key={`${day.date.getTime()}-${i}`}
                                     day={day}
                                     onPress={onDatePress}
-                                    monthAbbrev={abbrev}
+                                    monthAbbrev={monthAbbrev}
                                     selectedDate={selectedDate}
                                     isBottomSheetOpen={isBottomSheetOpen}
                                 />
@@ -225,7 +257,7 @@ export const CalendarGrid: React.FC<Props> = ({
         });
 
         return jsx;
-    }, [isLoading, monthsData, monthRange, onDatePress, selectedDate, isBottomSheetOpen]);
+    }, [calendarStructure, onDatePress, selectedDate, isBottomSheetOpen]);
 
     /** ----------------------- render ------------------------------ */
     if (isLoading) {
@@ -271,7 +303,7 @@ export const CalendarGrid: React.FC<Props> = ({
             <ScrollView
                 ref={scrollRef}
                 onScroll={handleScroll}
-                scrollEventThrottle={200}
+                scrollEventThrottle={16}
                 showsVerticalScrollIndicator={false}
                 style={{ flex: 1 }}
             >
