@@ -31,7 +31,7 @@ class _DayCellState extends State<DayCell>
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 100),
+      duration: const Duration(milliseconds: 300),
       vsync: this,
     );
     _borderOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
