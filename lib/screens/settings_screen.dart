@@ -18,18 +18,18 @@ class SettingsScreen extends StatefulWidget {
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends State<SettingsScreen> with AutomaticKeepAliveClientMixin {
   late final ScrollController _scrollController;
+  bool _hasRegisteredCallback = false;
+  
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
-    
-    // Provide scroll-to-top callback to parent
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      widget.onScrollCallbackReady?.call(_scrollToTop);
-    });
+    print('Settings screen initState called'); // Debug
   }
 
   @override
@@ -39,17 +39,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _scrollToTop() {
+    print('Settings scroll to top called'); // Debug
     if (_scrollController.hasClients) {
+      print('ScrollController has clients, animating to top'); // Debug
       _scrollController.animateTo(
         0,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
+    } else {
+      print('ScrollController has no clients'); // Debug
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
+    
+    // Register callback on build to ensure it happens when widget is actually visible
+    if (!_hasRegisteredCallback) {
+      print('Settings screen build - registering callback'); // Debug
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          print('Settings screen registering callback'); // Debug
+          widget.onScrollCallbackReady?.call(_scrollToTop);
+          _hasRegisteredCallback = true;
+        }
+      });
+    }
+    
     return Scaffold(
       backgroundColor: const Color(0xFF000000),
       body: SafeArea(

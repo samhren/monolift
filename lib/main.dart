@@ -84,26 +84,10 @@ class _MainNavigatorState extends State<MainNavigator> {
   VoidCallback? _calendarScrollToToday;
   VoidCallback? _settingsScrollToTop;
 
-  late final List<Widget> _screens;
-
   @override
   void initState() {
     super.initState();
-
-    _screens = [
-      const WorkoutsScreen(),
-      CalendarScreen(
-        onScrollCallbackReady: (callback) {
-          _calendarScrollToToday = callback;
-        },
-      ),
-      const ProgressScreen(),
-      SettingsScreen(
-        onScrollCallbackReady: (callback) {
-          _settingsScrollToTop = callback;
-        },
-      ),
-    ];
+    print('MainNavigator initState called'); // Debug
 
     // Load initial data
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -111,6 +95,22 @@ class _MainNavigatorState extends State<MainNavigator> {
       context.read<CalendarProvider>().refreshData();
     });
   }
+
+  List<Widget> get _screens => [
+    const WorkoutsScreen(),
+    CalendarScreen(
+      onScrollCallbackReady: (callback) {
+        _calendarScrollToToday = callback;
+      },
+    ),
+    const ProgressScreen(),
+    SettingsScreen(
+      onScrollCallbackReady: (callback) {
+        print('Settings callback received in main navigator'); // Debug
+        _settingsScrollToTop = callback;
+      },
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -135,8 +135,10 @@ class _MainNavigatorState extends State<MainNavigator> {
             
             // If settings tab is selected, scroll to top
             if (index == 3) {
+              print('Settings tab selected, callback: $_settingsScrollToTop'); // Debug
               // Add a small delay to ensure the tab switch animation completes
               Future.delayed(const Duration(milliseconds: 100), () {
+                print('Calling settings scroll to top'); // Debug
                 _settingsScrollToTop?.call();
               });
             }

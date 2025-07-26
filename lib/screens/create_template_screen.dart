@@ -49,11 +49,8 @@ class _CreateTemplateScreenState extends State<CreateTemplateScreen> {
       ),
       child: Column(
         children: [
-          // Header
+          // Header with down arrow and progress bar
           _buildHeader(),
-          
-          // Progress indicator
-          _buildProgressIndicator(),
           
           // Content
           Expanded(
@@ -83,63 +80,45 @@ class _CreateTemplateScreenState extends State<CreateTemplateScreen> {
   }
 
   Widget _buildHeader() {
+    final totalSteps = _getTotalSteps();
+    final currentProgress = _currentStep;
+    
     return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Color(0xFF333333), width: 1),
-        ),
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
       child: Row(
         children: [
           IconButton(
             onPressed: () => Navigator.pop(context),
             icon: const Icon(
-              Icons.close,
+              Icons.keyboard_arrow_down,
               color: Color(0xFFFFFFFF),
+              size: 28,
             ),
           ),
-          const SizedBox(width: 8),
-          const Text(
-            'Create Workout Template',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFFFFFFFF),
+          const SizedBox(width: 16),
+          Expanded(
+            child: TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeInOut,
+              tween: Tween<double>(
+                begin: 0,
+                end: totalSteps > 0 ? (currentProgress + 1) / totalSteps : 0,
+              ),
+              builder: (context, value, child) {
+                return LinearProgressIndicator(
+                  value: value,
+                  backgroundColor: const Color(0xFF333333),
+                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFFFFFF)),
+                );
+              },
             ),
           ),
+          const SizedBox(width: 20), // Right padding for symmetry
         ],
       ),
     );
   }
 
-  Widget _buildProgressIndicator() {
-    final totalSteps = _getTotalSteps();
-    final currentProgress = _currentStep;
-    
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Column(
-        children: [
-          // Progress bar
-          LinearProgressIndicator(
-            value: totalSteps > 0 ? (currentProgress + 1) / totalSteps : 0,
-            backgroundColor: const Color(0xFF333333),
-            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFFFFFF)),
-          ),
-          const SizedBox(height: 8),
-          // Step indicator text
-          Text(
-            'Step ${currentProgress + 1} of $totalSteps',
-            style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFF666666),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   int _getTotalSteps() {
     int steps = 1; // Name selection
@@ -172,27 +151,13 @@ class _CreateTemplateScreenState extends State<CreateTemplateScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 16),
-          
           // Title
           const Text(
-            'Choose Template Type',
+            'Template Name',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
               color: Color(0xFFFFFFFF),
-            ),
-          ),
-          
-          const SizedBox(height: 8),
-          
-          // Subtitle
-          const Text(
-            'Select a workout type or create a custom one.',
-            style: TextStyle(
-              fontSize: 16,
-              color: Color(0xFF999999),
-              height: 1.4,
             ),
           ),
           
