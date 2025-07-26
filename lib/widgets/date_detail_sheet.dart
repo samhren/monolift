@@ -15,7 +15,7 @@ class DateDetailSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.3,
+      height: MediaQuery.of(context).size.height * 0.25,
       decoration: const BoxDecoration(
         color: Color(0xFF2a2a2a),
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -36,17 +36,32 @@ class DateDetailSheet extends StatelessWidget {
             
             // Date header
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    DateFormat('EEEE, MMMM d').format(date),
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFFFFFFFF),
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        DateFormat('EEEE').format(date),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                          color: Color(0xFF999999),
+                        ),
+                      ),
+                      Text(
+                        date.year != DateTime.now().year 
+                            ? DateFormat('MMMM d, y').format(date)
+                            : DateFormat('MMMM d').format(date),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFFFFFFFF),
+                        ),
+                      ),
+                    ],
                   ),
                   IconButton(
                     onPressed: () => _showAddWorkoutDialog(context),
@@ -67,24 +82,22 @@ class DateDetailSheet extends StatelessWidget {
                   final sessions = calendarProvider.getSessionsForDate(date);
                   
                   if (plans.isEmpty && sessions.isEmpty) {
-                    return const Center(
+                    final isPastDate = date.isBefore(DateTime.now().copyWith(hour: 0, minute: 0, second: 0, microsecond: 0));
+                    final emptyMessage = isPastDate ? 'No workouts logged' : 'No workouts scheduled';
+                    
+                    return Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
-                            Icons.event_available,
-                            size: 40,
-                            color: Color(0xFF666666),
-                          ),
-                          SizedBox(height: 12),
                           Text(
-                            'No workouts scheduled',
-                            style: TextStyle(
+                            emptyMessage,
+                            style: const TextStyle(
                               fontSize: 16,
                               color: Color(0xFF666666),
                             ),
                           ),
-                          Text(
+                          const SizedBox(height: 4),
+                          const Text(
                             'Tap + to add a workout',
                             style: TextStyle(
                               fontSize: 14,

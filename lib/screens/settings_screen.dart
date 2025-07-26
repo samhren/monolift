@@ -1,4 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/settings_provider.dart';
+import '../models/settings_models.dart';
+import '../services/data_service.dart';
+import '../services/export_service.dart';
+import 'rest_timers_screen.dart';
+import 'haptic_feedback_screen.dart';
+import 'notifications_screen.dart';
+import 'weight_unit_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -29,9 +38,11 @@ class SettingsScreen extends StatelessWidget {
             
             // Settings list
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                children: [
+              child: Consumer<SettingsProvider>(
+                builder: (context, settingsProvider, child) {
+                  return ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    children: [
                   const SizedBox(height: 16),
                   
                   // Cloud Sync section
@@ -54,22 +65,24 @@ class SettingsScreen extends StatelessWidget {
                     context,
                     icon: Icons.schedule,
                     title: 'Rest Timers',
-                    subtitle: 'Configure default rest periods',
-                    onTap: () => _showComingSoon(context, 'Rest timer settings'),
+                    subtitle: settingsProvider.settings.customRestTimers.isNotEmpty 
+                        ? 'Default: ${_formatDuration(settingsProvider.settings.defaultRestTimer)} • ${settingsProvider.settings.customRestTimers.length} custom'
+                        : 'Default: ${_formatDuration(settingsProvider.settings.defaultRestTimer)}',
+                    onTap: () => _navigateToRestTimers(context),
                   ),
                   _buildSettingsTile(
                     context,
                     icon: Icons.vibration,
                     title: 'Haptic Feedback',
-                    subtitle: 'Enable vibration for interactions',
-                    onTap: () => _showComingSoon(context, 'Haptic feedback settings'),
+                    subtitle: settingsProvider.settings.hapticFeedbackEnabled ? 'Enabled' : 'Disabled',
+                    onTap: () => _navigateToHapticFeedback(context),
                   ),
                   _buildSettingsTile(
                     context,
                     icon: Icons.notifications,
                     title: 'Notifications',
-                    subtitle: 'Workout reminders and alerts',
-                    onTap: () => _showComingSoon(context, 'Notification settings'),
+                    subtitle: settingsProvider.settings.notificationsEnabled ? 'Enabled' : 'Disabled',
+                    onTap: () => _navigateToNotifications(context),
                   ),
                   
                   const SizedBox(height: 24),
@@ -81,8 +94,8 @@ class SettingsScreen extends StatelessWidget {
                     context,
                     icon: Icons.straighten,
                     title: 'Weight Unit',
-                    subtitle: 'Pounds (lbs)',
-                    onTap: () => _showComingSoon(context, 'Weight unit selection'),
+                    subtitle: settingsProvider.settings.weightUnit.displayName,
+                    onTap: () => _navigateToWeightUnit(context),
                   ),
                   
                   const SizedBox(height: 24),
@@ -95,7 +108,7 @@ class SettingsScreen extends StatelessWidget {
                     icon: Icons.file_download,
                     title: 'Export Data',
                     subtitle: 'Download your workout data',
-                    onTap: () => _showComingSoon(context, 'Data export'),
+                    onTap: () => _showExportDialog(context),
                   ),
                   _buildSettingsTile(
                     context,
@@ -127,7 +140,9 @@ class SettingsScreen extends StatelessWidget {
                   ),
                   
                   const SizedBox(height: 32),
-                ],
+                    ],
+                  );
+                },
               ),
             ),
           ],
@@ -160,7 +175,11 @@ class SettingsScreen extends StatelessWidget {
     Color? textColor,
   }) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 1),
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111111),
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: ListTile(
         leading: Icon(
           icon,
@@ -189,11 +208,7 @@ class SettingsScreen extends StatelessWidget {
               )
             : null,
         onTap: onTap,
-        tileColor: const Color(0xFF111111),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
     );
   }
@@ -250,14 +265,6 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  void _showComingSoon(BuildContext context, String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$feature coming soon'),
-        backgroundColor: const Color(0xFF3a3a3a),
-      ),
-    );
-  }
 
   void _showClearDataConfirmation(BuildContext context) {
     showDialog(
@@ -297,20 +304,190 @@ class SettingsScreen extends StatelessWidget {
 
   void _clearAllData(BuildContext context) async {
     try {
-      // TODO: Implement clear all data functionality
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Clear data functionality coming soon'),
-          backgroundColor: Color(0xFF3a3a3a),
-        ),
-      );
+      await DataService.clearAllData();
+      
+      // Clear settings provider data
+      if (context.mounted) {
+        final settingsProvider = Provider.of<SettingsProvider>(context, listen: false);
+        await settingsProvider.clearAllData();
+      }
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('All data cleared successfully'),
+            backgroundColor: Color(0xFF4CAF50),
+          ),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to clear data'),
-          backgroundColor: Color(0xFFFF4444),
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to clear data: $e'),
+            backgroundColor: const Color(0xFFFF4444),
+          ),
+        );
+      }
+    }
+  }
+
+  // Navigation methods
+  void _navigateToRestTimers(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const RestTimersScreen()),
+    );
+  }
+
+  void _navigateToHapticFeedback(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const HapticFeedbackScreen()),
+    );
+  }
+
+  void _navigateToNotifications(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const NotificationsScreen()),
+    );
+  }
+
+  void _navigateToWeightUnit(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const WeightUnitScreen()),
+    );
+  }
+
+  void _showExportDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2a2a2a),
+        title: const Text(
+          'Export Data',
+          style: TextStyle(color: Color(0xFFFFFFFF)),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Choose export format:',
+              style: TextStyle(color: Color(0xFF999999)),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.code, color: Color(0xFFFFFFFF)),
+              title: const Text(
+                'JSON Format',
+                style: TextStyle(color: Color(0xFFFFFFFF)),
+              ),
+              subtitle: const Text(
+                'Complete data with full structure',
+                style: TextStyle(color: Color(0xFF666666)),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _exportData(context, 'json');
+              },
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.table_chart, color: Color(0xFFFFFFFF)),
+              title: const Text(
+                'CSV Format',
+                style: TextStyle(color: Color(0xFFFFFFFF)),
+              ),
+              subtitle: const Text(
+                'Spreadsheet-compatible format',
+                style: TextStyle(color: Color(0xFF666666)),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _exportData(context, 'csv');
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Color(0xFF666666)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _exportData(BuildContext context, String format) async {
+    try {
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          backgroundColor: Color(0xFF2a2a2a),
+          content: Row(
+            children: [
+              CircularProgressIndicator(color: Color(0xFFFFFFFF)),
+              SizedBox(width: 16),
+              Text(
+                'Exporting data...',
+                style: TextStyle(color: Color(0xFFFFFFFF)),
+              ),
+            ],
+          ),
         ),
       );
+
+      // TODO: Get actual data from providers
+      final settingsProvider = Provider.of<SettingsProvider>(context, listen: false);
+      
+      await ExportService.exportAllData(
+        workoutTemplates: [], // TODO: Get from workout provider
+        workoutSessions: [], // TODO: Get from workout provider  
+        exercises: [], // TODO: Get from exercise provider
+        settings: settingsProvider.settings,
+        format: format,
+      );
+
+      if (context.mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Data exported successfully'),
+            backgroundColor: Color(0xFF4CAF50),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Export failed: $e'),
+            backgroundColor: const Color(0xFFFF4444),
+          ),
+        );
+      }
     }
+  }
+
+  String _formatDuration(int seconds) {
+    if (seconds < 60) {
+      return '${seconds}s';
+    }
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+    if (remainingSeconds == 0) {
+      return '${minutes}m';
+    }
+    return '${minutes}m ${remainingSeconds}s';
   }
 }

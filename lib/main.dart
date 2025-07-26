@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'services/storage_manager.dart';
 import 'providers/workout_provider.dart';
 import 'providers/calendar_provider.dart';
+import 'providers/settings_provider.dart';
 import 'screens/workouts_screen.dart';
 import 'screens/calendar_screen.dart';
 import 'screens/progress_screen.dart';
@@ -27,6 +28,7 @@ class MonoliftApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => WorkoutProvider()),
         ChangeNotifierProvider(create: (_) => CalendarProvider()),
+        ChangeNotifierProvider(create: (_) => SettingsProvider()..initialize()),
       ],
       child: MaterialApp(
         title: 'Monolift',

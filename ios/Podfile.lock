@@ -9,6 +9,8 @@ PODS:
   - path_provider_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
+  - share_plus (0.0.1):
+    - Flutter
   - vibration (1.7.5):
     - Flutter
 
@@ -18,6 +20,7 @@ DEPENDENCIES:
   - flutter_local_notifications (from `.symlinks/plugins/flutter_local_notifications/ios`)
   - icloud_storage (from `.symlinks/plugins/icloud_storage/ios`)
   - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
+  - share_plus (from `.symlinks/plugins/share_plus/ios`)
   - vibration (from `.symlinks/plugins/vibration/ios`)
 
 EXTERNAL SOURCES:
@@ -31,6 +34,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/icloud_storage/ios"
   path_provider_foundation:
     :path: ".symlinks/plugins/path_provider_foundation/darwin"
+  share_plus:
+    :path: ".symlinks/plugins/share_plus/ios"
   vibration:
     :path: ".symlinks/plugins/vibration/ios"
 
@@ -40,6 +45,7 @@ SPEC CHECKSUMS:
   flutter_local_notifications: ad39620c743ea4c15127860f4b5641649a988100
   icloud_storage: a19d8c074126371a0152df66d771e1af7981e6bb
   path_provider_foundation: 080d55be775b7414fd5a5ef3ac137b97b097e564
+  share_plus: 50da8cb520a8f0f65671c6c6a99b3617ed10a58a
   vibration: 8e2f50fc35bb736f9eecb7dd9f7047fbb6a6e888
 
 PODFILE CHECKSUM: 4305caec6b40dde0ae97be1573c53de1882a07e5
