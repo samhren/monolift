@@ -34,6 +34,11 @@ class MonoliftApp extends StatelessWidget {
         title: 'Monolift',
         theme: ThemeData(
           brightness: Brightness.dark,
+          splashFactory: NoSplash.splashFactory,
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+          hoverColor: Colors.transparent,
+          focusColor: Colors.transparent,
           scaffoldBackgroundColor: const Color(0xFF000000),
           appBarTheme: const AppBarTheme(
             backgroundColor: Color(0xFF000000),
@@ -77,29 +82,35 @@ class MainNavigator extends StatefulWidget {
 class _MainNavigatorState extends State<MainNavigator> {
   int _currentIndex = 0;
   VoidCallback? _calendarScrollToToday;
+  VoidCallback? _settingsScrollToTop;
 
   late final List<Widget> _screens;
 
   @override
   void initState() {
     super.initState();
-    
+
     _screens = [
       const WorkoutsScreen(),
-      CalendarScreen(onScrollCallbackReady: (callback) {
-        _calendarScrollToToday = callback;
-      }),
+      CalendarScreen(
+        onScrollCallbackReady: (callback) {
+          _calendarScrollToToday = callback;
+        },
+      ),
       const ProgressScreen(),
-      const SettingsScreen(),
+      SettingsScreen(
+        onScrollCallbackReady: (callback) {
+          _settingsScrollToTop = callback;
+        },
+      ),
     ];
-    
+
     // Load initial data
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<WorkoutProvider>().refreshTemplates();
       context.read<CalendarProvider>().refreshData();
     });
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -113,12 +124,20 @@ class _MainNavigatorState extends State<MainNavigator> {
           currentIndex: _currentIndex,
           onTap: (index) {
             setState(() => _currentIndex = index);
-            
+
             // If calendar tab is selected, scroll to today
             if (index == 1) {
               // Add a small delay to ensure the tab switch animation completes
               Future.delayed(const Duration(milliseconds: 100), () {
                 _calendarScrollToToday?.call();
+              });
+            }
+            
+            // If settings tab is selected, scroll to top
+            if (index == 3) {
+              // Add a small delay to ensure the tab switch animation completes
+              Future.delayed(const Duration(milliseconds: 100), () {
+                _settingsScrollToTop?.call();
               });
             }
           },

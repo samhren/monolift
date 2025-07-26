@@ -92,19 +92,29 @@ class _CalendarGridState extends State<CalendarGrid> {
   }
 
   void _findTodayRowIndex() {
-    if (_monthsData.isEmpty || _monthsData[0].monthGroups == null) return;
+    if (_monthsData.isEmpty || _monthsData[0].monthGroups == null) {
+      _todayRowIndex = -1;
+      return;
+    }
     
     final monthGroups = _monthsData[0].monthGroups!;
     int rowCounter = 0;
+    _todayRowIndex = -1; // Reset to -1 first
+    final today = DateTime.now();
+    final todayDateOnly = DateTime(today.year, today.month, today.day);
     
-    for (int m = 0; m < monthGroups.length && _todayRowIndex == -1; m++) {
+    for (int m = 0; m < monthGroups.length; m++) {
       final rows = monthGroups[m];
       
       for (int i = 0; i < rows.length; i++) {
-        final todayInRow = rows[i].days.any((day) => day?.isToday == true);
+        final todayInRow = rows[i].days.any((day) {
+          if (day == null) return false;
+          final dayDateOnly = DateTime(day.date.year, day.date.month, day.date.day);
+          return dayDateOnly.isAtSameMomentAs(todayDateOnly);
+        });
         if (todayInRow) {
           _todayRowIndex = rowCounter + i;
-          break;
+          return; // Found today, exit early
         }
       }
       rowCounter += rows.length;
@@ -221,8 +231,19 @@ class _CalendarGridState extends State<CalendarGrid> {
   }
 
   void _updateTodayButtonVisibility(int firstVisibleRow, int lastVisibleRow) {
-    if (_todayRowIndex == -1) return;
+    if (_todayRowIndex == -1) {
+      // Today is not in the current calendar window, so show button
+      if (!_showTodayButton) {
+        _showTodayButton = true;
+        widget.onTodayVisibility(
+          visible: true,
+          direction: 'down', // Default direction when today is not in view
+        );
+      }
+      return;
+    }
     
+    // Today is in the calendar window, check if it's visible in viewport
     final visible = _todayRowIndex < firstVisibleRow || _todayRowIndex > lastVisibleRow;
     
     if (visible != _showTodayButton) {
@@ -293,6 +314,13 @@ class _CalendarGridState extends State<CalendarGrid> {
         if (_scrollController.hasClients) {
           _scrollController.jumpTo(newScrollOffset);
         }
+        // Force update today button visibility after scroll adjustment
+        _handleScroll();
+      });
+    } else {
+      // Still force update visibility even if no scroll adjustment
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _handleScroll();
       });
     }
     

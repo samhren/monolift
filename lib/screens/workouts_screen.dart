@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/workout_provider.dart';
 import '../widgets/workout_template_card.dart';
-import '../widgets/add_template_modal.dart';
+import 'create_template_screen.dart';
 
 class WorkoutsScreen extends StatelessWidget {
   const WorkoutsScreen({super.key});
@@ -124,7 +124,7 @@ class WorkoutsScreen extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const AddTemplateModal(),
+      builder: (context) => const CreateTemplateScreen(),
     );
   }
 

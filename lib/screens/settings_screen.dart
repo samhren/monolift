@@ -9,8 +9,44 @@ import 'haptic_feedback_screen.dart';
 import 'notifications_screen.dart';
 import 'weight_unit_screen.dart';
 
-class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
+class SettingsScreen extends StatefulWidget {
+  final Function(VoidCallback)? onScrollCallbackReady;
+  
+  const SettingsScreen({super.key, this.onScrollCallbackReady});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  late final ScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    
+    // Provide scroll-to-top callback to parent
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.onScrollCallbackReady?.call(_scrollToTop);
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollToTop() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,6 +77,7 @@ class SettingsScreen extends StatelessWidget {
               child: Consumer<SettingsProvider>(
                 builder: (context, settingsProvider, child) {
                   return ListView(
+                    controller: _scrollController,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     children: [
                   const SizedBox(height: 16),
