@@ -37,7 +37,7 @@ class CalendarGridController {
   }
   
   void scrollToToday() {
-    _state?._centerOnToday();
+    _state?._goToTodaySmartly();
   }
 }
 
@@ -48,6 +48,11 @@ class _CalendarGridState extends State<CalendarGrid> {
   int _todayRowIndex = -1;
   int _currentYear = DateTime.now().year;
   bool _showTodayButton = false;
+  
+  // Lazy loading state
+  int _currentStartOffset = -6;  // Current window start
+  int _currentEndOffset = 12;    // Current window end
+  bool _isRegeneratingCalendar = false;
 
   static const double _rowHeight = 63.0;
   static const double _rowMargin = 8.0;
@@ -70,8 +75,11 @@ class _CalendarGridState extends State<CalendarGrid> {
   }
 
   void _initializeCalendar() {
-    // Generate calendar data for 1.5 years (6 months back, 12 months forward)
-    _monthsData = generateMonthsData(startOffset: -6, endOffset: 12);
+    // Generate calendar data for current window
+    _monthsData = generateMonthsData(
+      startOffset: _currentStartOffset, 
+      endOffset: _currentEndOffset
+    );
     _findTodayRowIndex();
     _isInitialized = true;
     
@@ -123,6 +131,43 @@ class _CalendarGridState extends State<CalendarGrid> {
     );
   }
 
+  void _goToTodaySmartly() {
+    // Reset the calendar window to original range centered on today
+    const originalStartOffset = -6;
+    const originalEndOffset = 12;
+    
+    // Check if we need to reset the window
+    if (_currentStartOffset != originalStartOffset || _currentEndOffset != originalEndOffset) {
+      _resetWindowAndScrollToToday(originalStartOffset, originalEndOffset);
+    } else {
+      // Window is already in original state, just scroll to today
+      _centerOnToday();
+    }
+  }
+
+  void _resetWindowAndScrollToToday(int startOffset, int endOffset) {
+    _isRegeneratingCalendar = true;
+    
+    // Generate new calendar data with original window
+    final newMonthsData = generateMonthsData(
+      startOffset: startOffset,
+      endOffset: endOffset,
+    );
+    
+    setState(() {
+      _monthsData = newMonthsData;
+      _currentStartOffset = startOffset;
+      _currentEndOffset = endOffset;
+      _findTodayRowIndex();
+    });
+    
+    // Scroll to today after the calendar is rebuilt
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _centerOnToday();
+      _isRegeneratingCalendar = false;
+    });
+  }
+
   void _handleScroll() {
     if (!_isInitialized || _monthsData.isEmpty || _monthsData[0].monthGroups == null) return;
     
@@ -137,6 +182,9 @@ class _CalendarGridState extends State<CalendarGrid> {
     
     // Update today button visibility
     _updateTodayButtonVisibility(firstVisibleRow, lastVisibleRow);
+    
+    // Check if we need to load more content (lazy loading)
+    _checkLazyLoading(firstVisibleRow, lastVisibleRow);
   }
 
   void _updateCurrentYear(int firstVisibleRow, int lastVisibleRow) {
@@ -148,16 +196,21 @@ class _CalendarGridState extends State<CalendarGrid> {
       final nextRowCounter = rowCounter + rows.length;
       
       if (firstVisibleRow < nextRowCounter && lastVisibleRow >= rowCounter) {
-        // Calculate year for this month
-        final today = DateTime.now();
-        final baseYear = today.year;
-        final baseMonth = today.month - 6; // -6 is our start offset
-        final targetMonth = baseMonth + m;
-        final currentYearFound = baseYear + (targetMonth ~/ 12);
-        
-        if (currentYearFound != _currentYear) {
-          _currentYear = currentYearFound;
-          widget.onYearChange(_currentYear);
+        // Get the actual year from the calendar data for this visible month
+        final middleRowIndex = ((firstVisibleRow + lastVisibleRow) / 2).floor() - rowCounter;
+        if (middleRowIndex >= 0 && middleRowIndex < rows.length) {
+          final middleRow = rows[middleRowIndex];
+          // Find a non-null day in this row to get the year
+          for (final day in middleRow.days) {
+            if (day != null) {
+              final currentYearFound = day.date.year;
+              if (currentYearFound != _currentYear) {
+                _currentYear = currentYearFound;
+                widget.onYearChange(_currentYear);
+              }
+              break;
+            }
+          }
         }
         break;
       }
@@ -179,6 +232,71 @@ class _CalendarGridState extends State<CalendarGrid> {
         direction: _todayRowIndex < firstVisibleRow ? 'up' : 'down',
       );
     }
+  }
+
+  void _checkLazyLoading(int firstVisibleRow, int lastVisibleRow) {
+    if (_isRegeneratingCalendar) return;
+    
+    final monthGroups = _monthsData[0].monthGroups!;
+    final totalRows = monthGroups.fold<int>(0, (sum, month) => sum + month.length);
+    
+    // Define trigger zones (when to load more content)
+    const triggerZone = 10; // rows from edge
+    
+    bool needsExpansion = false;
+    int newStartOffset = _currentStartOffset;
+    int newEndOffset = _currentEndOffset;
+    
+    // Check if near the beginning (need to load earlier months)
+    if (firstVisibleRow < triggerZone) {
+      newStartOffset = _currentStartOffset - 6; // Add 6 more months to the past
+      needsExpansion = true;
+    }
+    
+    // Check if near the end (need to load later months)
+    if (lastVisibleRow > totalRows - triggerZone) {
+      newEndOffset = _currentEndOffset + 6; // Add 6 more months to the future
+      needsExpansion = true;
+    }
+    
+    if (needsExpansion) {
+      _expandCalendarWindow(newStartOffset, newEndOffset, firstVisibleRow);
+    }
+  }
+
+  void _expandCalendarWindow(int newStartOffset, int newEndOffset, int currentFirstVisibleRow) async {
+    _isRegeneratingCalendar = true;
+    
+    // Calculate the current scroll position relative to the data
+    final currentScrollOffset = _scrollController.offset;
+    
+    // Generate new calendar data with expanded window
+    final newMonthsData = generateMonthsData(
+      startOffset: newStartOffset,
+      endOffset: newEndOffset,
+    );
+    
+    // Calculate how many rows were added at the beginning
+    final addedRowsAtBeginning = (_currentStartOffset - newStartOffset) * 4; // ~4 rows per month
+    
+    setState(() {
+      _monthsData = newMonthsData;
+      _currentStartOffset = newStartOffset;
+      _currentEndOffset = newEndOffset;
+      _findTodayRowIndex();
+    });
+    
+    // Adjust scroll position to maintain current view if content was added at the beginning
+    if (addedRowsAtBeginning > 0) {
+      final newScrollOffset = currentScrollOffset + (addedRowsAtBeginning * _totalRowHeight);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.jumpTo(newScrollOffset);
+        }
+      });
+    }
+    
+    _isRegeneratingCalendar = false;
   }
 
   @override
