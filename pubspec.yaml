@@ -60,6 +60,7 @@ dependencies:
   path_provider: ^2.1.4
   share_plus: ^10.0.2
   cross_file: ^0.3.4+2
+  reorderable_grid_view: ^2.2.8
 
 dev_dependencies:
   flutter_test:

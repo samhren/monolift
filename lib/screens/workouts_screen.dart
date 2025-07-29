@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:reorderable_grid_view/reorderable_grid_view.dart';
 import '../providers/workout_provider.dart';
 import '../widgets/workout_template_card.dart';
 import 'create_template_screen.dart';
+import 'workout_template_detail_screen.dart';
 
 class WorkoutsScreen extends StatelessWidget {
   const WorkoutsScreen({super.key});
@@ -96,17 +98,33 @@ class WorkoutsScreen extends StatelessWidget {
                     );
                   }
 
-                  return ListView.builder(
+                  return ReorderableGridView.builder(
+                    dragStartDelay: Duration.zero,
                     padding: const EdgeInsets.all(16),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          childAspectRatio: 1.0, // Make squares
+                        ),
                     itemCount: workoutProvider.templates.length,
+                    onReorder: (oldIndex, newIndex) {
+                      workoutProvider.reorderTemplates(oldIndex, newIndex);
+                    },
+                    dragWidgetBuilder: (context, child) {
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Material(elevation: 8, child: child),
+                      );
+                    },
                     itemBuilder: (context, index) {
                       final template = workoutProvider.templates[index];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: WorkoutTemplateCard(
-                          template: template,
-                          onTap: () => _handleStartWorkout(context, template.id),
-                        ),
+
+                      return WorkoutTemplateCard(
+                        key: ValueKey(template.id), // Important for reordering
+                        template: template,
+                        onTap: () => _navigateToTemplateDetail(context, template.id),
                       );
                     },
                   );
@@ -128,14 +146,12 @@ class WorkoutsScreen extends StatelessWidget {
     );
   }
 
-  void _handleStartWorkout(BuildContext context, String templateId) {
-    // TODO: Navigate to workout session
-    print('Starting workout: $templateId');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Starting workout: $templateId'),
-        backgroundColor: const Color(0xFF3a3a3a),
-      ),
+  void _navigateToTemplateDetail(BuildContext context, String templateId) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => WorkoutTemplateDetailScreen(templateId: templateId),
     );
   }
 }

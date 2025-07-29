@@ -28,8 +28,8 @@ class _CalendarScreenState extends State<CalendarScreen> with AutomaticKeepAlive
     super.initState();
     // Register the scroll callback with the parent after the CalendarGrid is fully built
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Add a small delay to ensure CalendarGrid is fully initialized
-      Future.delayed(const Duration(milliseconds: 200), () {
+      // Reduced delay to minimize flash effect
+      Future.delayed(const Duration(milliseconds: 50), () {
         if (mounted) {
           widget.onScrollCallbackReady?.call(scrollToToday);
         }

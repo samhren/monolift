@@ -22,6 +22,15 @@ class WorkoutTemplate extends HiveObject {
   @HiveField(5)
   List<TemplateExercise>? exercises;
 
+  @HiveField(6)
+  late int colorValue; // Store Color as int value
+
+  @HiveField(7)
+  late int displayOrder; // For drag-to-reorder functionality
+
+  @HiveField(8)
+  String? groupName; // Optional group name
+
   WorkoutTemplate({
     required this.id,
     required this.name,
@@ -29,6 +38,9 @@ class WorkoutTemplate extends HiveObject {
     required this.createdAt,
     required this.updatedAt,
     this.exercises,
+    required this.colorValue,
+    required this.displayOrder,
+    this.groupName,
   });
 
   Map<String, dynamic> toJson() {
@@ -39,6 +51,9 @@ class WorkoutTemplate extends HiveObject {
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'exercises': exercises?.map((e) => e.toJson()).toList(),
+      'colorValue': colorValue,
+      'displayOrder': displayOrder,
+      'groupName': groupName,
     };
   }
 
@@ -54,6 +69,9 @@ class WorkoutTemplate extends HiveObject {
               .map((e) => TemplateExercise.fromJson(e))
               .toList()
           : null,
+      colorValue: json['colorValue'] ?? 0xFF00FFFF, // Default to cyan if not set
+      displayOrder: json['displayOrder'] ?? 0, // Default to 0 if not set
+      groupName: json['groupName'],
     );
   }
 }

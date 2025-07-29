@@ -44,7 +44,6 @@ class CalendarGridController {
 class _CalendarGridState extends State<CalendarGrid> {
   final ScrollController _scrollController = ScrollController();
   List<MonthData> _monthsData = [];
-  bool _isInitialized = false;
   int _todayRowIndex = -1;
   int _currentYear = DateTime.now().year;
   bool _showTodayButton = false;
@@ -53,6 +52,7 @@ class _CalendarGridState extends State<CalendarGrid> {
   int _currentStartOffset = -6;  // Current window start
   int _currentEndOffset = 12;    // Current window end
   bool _isRegeneratingCalendar = false;
+  bool _hasPerformedInitialScroll = false;
 
   static const double _rowHeight = 63.0;
   static const double _rowMargin = 8.0;
@@ -63,8 +63,22 @@ class _CalendarGridState extends State<CalendarGrid> {
   void initState() {
     super.initState();
     widget.controller?._attach(this);
-    _initializeCalendar();
     _scrollController.addListener(_handleScroll);
+    
+    // Initialize calendar synchronously to avoid flash
+    _monthsData = generateMonthsData(
+      startOffset: _currentStartOffset, 
+      endOffset: _currentEndOffset
+    );
+    _findTodayRowIndex();
+    
+    // Only schedule the centering animation, not the initialization
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_hasPerformedInitialScroll) {
+        _centerOnToday();
+        _hasPerformedInitialScroll = true;
+      }
+    });
   }
 
   @override
@@ -74,22 +88,6 @@ class _CalendarGridState extends State<CalendarGrid> {
     super.dispose();
   }
 
-  void _initializeCalendar() {
-    // Generate calendar data for current window
-    _monthsData = generateMonthsData(
-      startOffset: _currentStartOffset, 
-      endOffset: _currentEndOffset
-    );
-    _findTodayRowIndex();
-    _isInitialized = true;
-    
-    // Center on today after the widget is built
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _centerOnToday();
-    });
-    
-    setState(() {});
-  }
 
   void _findTodayRowIndex() {
     if (_monthsData.isEmpty || _monthsData[0].monthGroups == null) {
@@ -179,7 +177,7 @@ class _CalendarGridState extends State<CalendarGrid> {
   }
 
   void _handleScroll() {
-    if (!_isInitialized || _monthsData.isEmpty || _monthsData[0].monthGroups == null) return;
+    if (_monthsData.isEmpty || _monthsData[0].monthGroups == null) return;
     
     final scrollOffset = _scrollController.offset;
     final viewportHeight = _scrollController.position.viewportDimension;
@@ -329,10 +327,7 @@ class _CalendarGridState extends State<CalendarGrid> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_isInitialized) {
-      return _buildLoadingState();
-    }
-
+    // Since we initialize synchronously in initState, we should always be ready
     return Column(
       children: [
         _buildWeekHeader(),
@@ -372,42 +367,13 @@ class _CalendarGridState extends State<CalendarGrid> {
     );
   }
 
-  Widget _buildLoadingState() {
-    return Column(
-      children: [
-        _buildWeekHeader(),
-        _buildSeparator(),
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Column(
-              children: List.generate(8, (i) => 
-                Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    children: List.generate(7, (j) => 
-                      Expanded(
-                        child: Container(
-                          height: 55,
-                          margin: const EdgeInsets.symmetric(horizontal: 1),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1a1a1a),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildCalendarBody() {
+    // Safety check in case data isn't ready
+    if (_monthsData.isEmpty || _monthsData[0].monthGroups == null) {
+      return const SizedBox();
+    }
+    
     final monthGroups = _monthsData[0].monthGroups!;
     final today = DateTime.now();
     final startMonth = DateTime(today.year, today.month - 6, 1);

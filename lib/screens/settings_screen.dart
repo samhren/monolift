@@ -11,17 +11,18 @@ import 'weight_unit_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   final Function(VoidCallback)? onScrollCallbackReady;
-  
+
   const SettingsScreen({super.key, this.onScrollCallbackReady});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> with AutomaticKeepAliveClientMixin {
+class _SettingsScreenState extends State<SettingsScreen>
+    with AutomaticKeepAliveClientMixin {
   late final ScrollController _scrollController;
   bool _hasRegisteredCallback = false;
-  
+
   @override
   bool get wantKeepAlive => true;
 
@@ -29,7 +30,6 @@ class _SettingsScreenState extends State<SettingsScreen> with AutomaticKeepAlive
   void initState() {
     super.initState();
     _scrollController = ScrollController();
-    print('Settings screen initState called'); // Debug
   }
 
   @override
@@ -39,35 +39,27 @@ class _SettingsScreenState extends State<SettingsScreen> with AutomaticKeepAlive
   }
 
   void _scrollToTop() {
-    print('Settings scroll to top called'); // Debug
-    if (_scrollController.hasClients) {
-      print('ScrollController has clients, animating to top'); // Debug
-      _scrollController.animateTo(
-        0,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    } else {
-      print('ScrollController has no clients'); // Debug
-    }
+    _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
-    
+
     // Register callback on build to ensure it happens when widget is actually visible
     if (!_hasRegisteredCallback) {
-      print('Settings screen build - registering callback'); // Debug
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          print('Settings screen registering callback'); // Debug
           widget.onScrollCallbackReady?.call(_scrollToTop);
           _hasRegisteredCallback = true;
         }
       });
     }
-    
+
     return Scaffold(
       backgroundColor: const Color(0xFF000000),
       body: SafeArea(
@@ -89,7 +81,7 @@ class _SettingsScreenState extends State<SettingsScreen> with AutomaticKeepAlive
                 ],
               ),
             ),
-            
+
             // Settings list
             Expanded(
               child: Consumer<SettingsProvider>(
@@ -98,103 +90,113 @@ class _SettingsScreenState extends State<SettingsScreen> with AutomaticKeepAlive
                     controller: _scrollController,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     children: [
-                  const SizedBox(height: 16),
-                  
-                  // Cloud Sync section
-                  _buildSectionHeader('Cloud Sync'),
-                  const SizedBox(height: 8),
-                  _buildSettingsTile(
-                    context,
-                    icon: Icons.cloud,
-                    title: 'iCloud Sync',
-                    subtitle: 'Sync data across your devices',
-                    onTap: () => _showCloudSyncInfo(context),
-                  ),
-                  
-                  const SizedBox(height: 24),
-                  
-                  // Workout Settings section
-                  _buildSectionHeader('Workout Settings'),
-                  const SizedBox(height: 8),
-                  _buildSettingsTile(
-                    context,
-                    icon: Icons.schedule,
-                    title: 'Rest Timers',
-                    subtitle: settingsProvider.settings.customRestTimers.isNotEmpty 
-                        ? 'Default: ${_formatDuration(settingsProvider.settings.defaultRestTimer)} • ${settingsProvider.settings.customRestTimers.length} custom'
-                        : 'Default: ${_formatDuration(settingsProvider.settings.defaultRestTimer)}',
-                    onTap: () => _navigateToRestTimers(context),
-                  ),
-                  _buildSettingsTile(
-                    context,
-                    icon: Icons.vibration,
-                    title: 'Haptic Feedback',
-                    subtitle: settingsProvider.settings.hapticFeedbackEnabled ? 'Enabled' : 'Disabled',
-                    onTap: () => _navigateToHapticFeedback(context),
-                  ),
-                  _buildSettingsTile(
-                    context,
-                    icon: Icons.notifications,
-                    title: 'Notifications',
-                    subtitle: settingsProvider.settings.notificationsEnabled ? 'Enabled' : 'Disabled',
-                    onTap: () => _navigateToNotifications(context),
-                  ),
-                  
-                  const SizedBox(height: 24),
-                  
-                  // Units section
-                  _buildSectionHeader('Units'),
-                  const SizedBox(height: 8),
-                  _buildSettingsTile(
-                    context,
-                    icon: Icons.straighten,
-                    title: 'Weight Unit',
-                    subtitle: settingsProvider.settings.weightUnit.displayName,
-                    onTap: () => _navigateToWeightUnit(context),
-                  ),
-                  
-                  const SizedBox(height: 24),
-                  
-                  // Data section
-                  _buildSectionHeader('Data'),
-                  const SizedBox(height: 8),
-                  _buildSettingsTile(
-                    context,
-                    icon: Icons.file_download,
-                    title: 'Export Data',
-                    subtitle: 'Download your workout data',
-                    onTap: () => _showExportDialog(context),
-                  ),
-                  _buildSettingsTile(
-                    context,
-                    icon: Icons.delete_sweep,
-                    title: 'Clear All Data',
-                    subtitle: 'Remove all workout data',
-                    onTap: () => _showClearDataConfirmation(context),
-                    textColor: const Color(0xFFFF4444),
-                  ),
-                  
-                  const SizedBox(height: 24),
-                  
-                  // About section
-                  _buildSectionHeader('About'),
-                  const SizedBox(height: 8),
-                  _buildSettingsTile(
-                    context,
-                    icon: Icons.info,
-                    title: 'App Version',
-                    subtitle: '1.0.0',
-                    onTap: null,
-                  ),
-                  _buildSettingsTile(
-                    context,
-                    icon: Icons.privacy_tip,
-                    title: 'Privacy',
-                    subtitle: 'Your data stays on your device',
-                    onTap: () => _showPrivacyInfo(context),
-                  ),
-                  
-                  const SizedBox(height: 32),
+                      const SizedBox(height: 16),
+
+                      // Cloud Sync section
+                      _buildSectionHeader('Cloud Sync'),
+                      const SizedBox(height: 8),
+                      _buildSettingsTile(
+                        context,
+                        icon: Icons.cloud,
+                        title: 'iCloud Sync',
+                        subtitle: 'Sync data across your devices',
+                        onTap: () => _showCloudSyncInfo(context),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Workout Settings section
+                      _buildSectionHeader('Workout Settings'),
+                      const SizedBox(height: 8),
+                      _buildSettingsTile(
+                        context,
+                        icon: Icons.schedule,
+                        title: 'Rest Timers',
+                        subtitle:
+                            settingsProvider
+                                .settings
+                                .customRestTimers
+                                .isNotEmpty
+                            ? 'Default: ${_formatDuration(settingsProvider.settings.defaultRestTimer)} • ${settingsProvider.settings.customRestTimers.length} custom'
+                            : 'Default: ${_formatDuration(settingsProvider.settings.defaultRestTimer)}',
+                        onTap: () => _navigateToRestTimers(context),
+                      ),
+                      _buildSettingsTile(
+                        context,
+                        icon: Icons.vibration,
+                        title: 'Haptic Feedback',
+                        subtitle:
+                            settingsProvider.settings.hapticFeedbackEnabled
+                            ? 'Enabled'
+                            : 'Disabled',
+                        onTap: () => _navigateToHapticFeedback(context),
+                      ),
+                      _buildSettingsTile(
+                        context,
+                        icon: Icons.notifications,
+                        title: 'Notifications',
+                        subtitle: settingsProvider.settings.notificationsEnabled
+                            ? 'Enabled'
+                            : 'Disabled',
+                        onTap: () => _navigateToNotifications(context),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Units section
+                      _buildSectionHeader('Units'),
+                      const SizedBox(height: 8),
+                      _buildSettingsTile(
+                        context,
+                        icon: Icons.straighten,
+                        title: 'Weight Unit',
+                        subtitle:
+                            settingsProvider.settings.weightUnit.displayName,
+                        onTap: () => _navigateToWeightUnit(context),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Data section
+                      _buildSectionHeader('Data'),
+                      const SizedBox(height: 8),
+                      _buildSettingsTile(
+                        context,
+                        icon: Icons.file_download,
+                        title: 'Export Data',
+                        subtitle: 'Download your workout data',
+                        onTap: () => _showExportDialog(context),
+                      ),
+                      _buildSettingsTile(
+                        context,
+                        icon: Icons.delete_sweep,
+                        title: 'Clear All Data',
+                        subtitle: 'Remove all workout data',
+                        onTap: () => _showClearDataConfirmation(context),
+                        textColor: const Color(0xFFFF4444),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // About section
+                      _buildSectionHeader('About'),
+                      const SizedBox(height: 8),
+                      _buildSettingsTile(
+                        context,
+                        icon: Icons.info,
+                        title: 'App Version',
+                        subtitle: '1.0.0',
+                        onTap: null,
+                      ),
+                      _buildSettingsTile(
+                        context,
+                        icon: Icons.privacy_tip,
+                        title: 'Privacy',
+                        subtitle: 'Your data stays on your device',
+                        onTap: () => _showPrivacyInfo(context),
+                      ),
+
+                      const SizedBox(height: 32),
                     ],
                   );
                 },
@@ -251,16 +253,10 @@ class _SettingsScreenState extends State<SettingsScreen> with AutomaticKeepAlive
         ),
         subtitle: Text(
           subtitle,
-          style: const TextStyle(
-            fontSize: 14,
-            color: Color(0xFF666666),
-          ),
+          style: const TextStyle(fontSize: 14, color: Color(0xFF666666)),
         ),
         trailing: onTap != null
-            ? const Icon(
-                Icons.chevron_right,
-                color: Color(0xFF666666),
-              )
+            ? const Icon(Icons.chevron_right, color: Color(0xFF666666))
             : null,
         onTap: onTap,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -284,10 +280,7 @@ class _SettingsScreenState extends State<SettingsScreen> with AutomaticKeepAlive
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'OK',
-              style: TextStyle(color: Color(0xFFFFFFFF)),
-            ),
+            child: const Text('OK', style: TextStyle(color: Color(0xFFFFFFFF))),
           ),
         ],
       ),
@@ -310,16 +303,12 @@ class _SettingsScreenState extends State<SettingsScreen> with AutomaticKeepAlive
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'OK',
-              style: TextStyle(color: Color(0xFFFFFFFF)),
-            ),
+            child: const Text('OK', style: TextStyle(color: Color(0xFFFFFFFF))),
           ),
         ],
       ),
     );
   }
-
 
   void _showClearDataConfirmation(BuildContext context) {
     showDialog(
@@ -360,13 +349,16 @@ class _SettingsScreenState extends State<SettingsScreen> with AutomaticKeepAlive
   void _clearAllData(BuildContext context) async {
     try {
       await DataService.clearAllData();
-      
+
       // Clear settings provider data
       if (context.mounted) {
-        final settingsProvider = Provider.of<SettingsProvider>(context, listen: false);
+        final settingsProvider = Provider.of<SettingsProvider>(
+          context,
+          listen: false,
+        );
         await settingsProvider.clearAllData();
       }
-      
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -502,11 +494,14 @@ class _SettingsScreenState extends State<SettingsScreen> with AutomaticKeepAlive
       );
 
       // TODO: Get actual data from providers
-      final settingsProvider = Provider.of<SettingsProvider>(context, listen: false);
-      
+      final settingsProvider = Provider.of<SettingsProvider>(
+        context,
+        listen: false,
+      );
+
       await ExportService.exportAllData(
         workoutTemplates: [], // TODO: Get from workout provider
-        workoutSessions: [], // TODO: Get from workout provider  
+        workoutSessions: [], // TODO: Get from workout provider
         exercises: [], // TODO: Get from exercise provider
         settings: settingsProvider.settings,
         format: format,
