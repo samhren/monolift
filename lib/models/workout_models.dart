@@ -31,6 +31,12 @@ class WorkoutTemplate extends HiveObject {
   @HiveField(8)
   String? groupName; // Optional group name
 
+  @HiveField(9)
+  List<int>? weekdays; // Days of week (0=Sunday, 1=Monday, etc.)
+
+  @HiveField(10)
+  bool isActive; // Whether the template is active/enabled
+
   WorkoutTemplate({
     required this.id,
     required this.name,
@@ -41,6 +47,8 @@ class WorkoutTemplate extends HiveObject {
     required this.colorValue,
     required this.displayOrder,
     this.groupName,
+    this.weekdays,
+    this.isActive = true,
   });
 
   Map<String, dynamic> toJson() {
@@ -54,6 +62,8 @@ class WorkoutTemplate extends HiveObject {
       'colorValue': colorValue,
       'displayOrder': displayOrder,
       'groupName': groupName,
+      'weekdays': weekdays,
+      'isActive': isActive,
     };
   }
 
@@ -72,6 +82,8 @@ class WorkoutTemplate extends HiveObject {
       colorValue: json['colorValue'] ?? 0xFF00FFFF, // Default to cyan if not set
       displayOrder: json['displayOrder'] ?? 0, // Default to 0 if not set
       groupName: json['groupName'],
+      weekdays: json['weekdays']?.cast<int>(),
+      isActive: json['isActive'] ?? true, // Default to active if not set
     );
   }
 }

@@ -26,13 +26,15 @@ class WorkoutTemplateAdapter extends TypeAdapter<WorkoutTemplate> {
       colorValue: fields[6] as int,
       displayOrder: fields[7] as int,
       groupName: fields[8] as String?,
+      weekdays: (fields[9] as List?)?.cast<int>(),
+      isActive: fields[10] as bool,
     );
   }
 
   @override
   void write(BinaryWriter writer, WorkoutTemplate obj) {
     writer
-      ..writeByte(9)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -50,7 +52,11 @@ class WorkoutTemplateAdapter extends TypeAdapter<WorkoutTemplate> {
       ..writeByte(7)
       ..write(obj.displayOrder)
       ..writeByte(8)
-      ..write(obj.groupName);
+      ..write(obj.groupName)
+      ..writeByte(9)
+      ..write(obj.weekdays)
+      ..writeByte(10)
+      ..write(obj.isActive);
   }
 
   @override

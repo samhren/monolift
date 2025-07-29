@@ -1561,12 +1561,20 @@ class _CreateTemplateScreenState extends State<CreateTemplateScreen> {
         finalGroupName = _groupName.trim();
       }
 
+      // Convert selected days from Monday=0 to Sunday=0 format
+      final convertedWeekdays = _selectedDays.map((day) {
+        // _selectedDays: 0=Monday, 1=Tuesday, ..., 6=Sunday
+        // weekdays: 0=Sunday, 1=Monday, ..., 6=Saturday
+        return day == 6 ? 0 : day + 1;
+      }).toList()..sort();
+
       // Create template with group functionality
       await workoutProvider.addTemplate(
         name: finalTemplateName,
         daysPerWeek: _selectedDays.length,
         exercises: [], // Start with no exercises - will be added later
         groupName: finalGroupName,
+        weekdays: convertedWeekdays,
       );
 
       settingsProvider.triggerHapticSuccess();

@@ -9,10 +9,10 @@ class WorkoutProvider extends ChangeNotifier {
   bool _loading = false;
 
   List<WorkoutTemplate> get templates {
-    // Always return templates sorted by display order
-    List<WorkoutTemplate> sortedTemplates = List.from(_templates);
-    sortedTemplates.sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
-    return sortedTemplates;
+    // Return only active templates sorted by display order
+    List<WorkoutTemplate> activeTemplates = _templates.where((t) => t.isActive).toList();
+    activeTemplates.sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
+    return activeTemplates;
   }
   bool get loading => _loading;
 
@@ -38,6 +38,7 @@ class WorkoutProvider extends ChangeNotifier {
     required int daysPerWeek,
     List<TemplateExercise>? exercises,
     String? groupName,
+    List<int>? weekdays,
   }) async {
     final now = DateTime.now();
     
@@ -59,6 +60,7 @@ class WorkoutProvider extends ChangeNotifier {
       colorValue: NeonColors.colorToInt(selectedColor),
       displayOrder: maxOrder + 1,
       groupName: groupName,
+      weekdays: weekdays,
     );
 
     await StorageManager.saveTemplate(template);
